@@ -1,0 +1,360 @@
+/* AdminLogin.css - Admin Portal with Gold/Amber theme */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Inter", "Segoe UI", sans-serif;
+  background: #f0f2f8;
+}
+
+.admin-wrapper {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ── Left Panel ── */
+.admin-left {
+  width: 38%;
+  background: linear-gradient(160deg, #1a1200 0%, #2d1f00 60%, #1a1200 100%);
+  padding: 48px 44px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-left::before {
+  content: "";
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.06);
+  pointer-events: none;
+}
+
+.admin-left::after {
+  content: "";
+  position: absolute;
+  bottom: -60px;
+  left: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.05);
+  pointer-events: none;
+}
+
+/* Brand */
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.admin-brand-icon {
+  flex-shrink: 0;
+}
+
+.admin-brand-text h1 {
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.25;
+}
+
+.admin-brand-text h1 span {
+  color: #f59e0b;
+}
+
+.admin-brand-text::after {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 2px;
+  background: #f59e0b;
+  margin-top: 8px;
+}
+
+.admin-brand-desc {
+  color: #a08040;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 24px;
+  padding-left: 2px;
+}
+
+/* Admin Badge */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 20px;
+  padding: 6px 16px;
+  margin-bottom: 36px;
+  width: fit-content;
+}
+
+.admin-badge span {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f59e0b;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Features */
+.admin-features {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  flex: 1;
+}
+
+.admin-feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.admin-feature-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-feature-item h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 4px;
+}
+
+.admin-feature-item p {
+  font-size: 0.82rem;
+  color: #a08040;
+  line-height: 1.5;
+}
+
+.admin-copyright {
+  font-size: 0.75rem;
+  color: #5a4a20;
+  margin-top: 40px;
+}
+
+/* ── Right Panel ── */
+.admin-right {
+  flex: 1;
+  background: #f0f2f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px;
+}
+
+/* Admin Card */
+.admin-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 44px 40px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.07);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.admin-login-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #fef3c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+}
+
+.admin-card h2 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.admin-subtitle {
+  font-size: 0.9rem;
+  color: #6b7280;
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+/* Fields */
+.admin-field {
+  margin-bottom: 18px;
+}
+
+.admin-field label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.admin-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0 14px;
+  background: #fff;
+  transition: border-color 0.2s;
+}
+
+.admin-input-wrap:focus-within {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+.admin-input-wrap.admin-input-error {
+  border-color: #e53e3e;
+}
+
+.admin-input-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.admin-input-wrap input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 0;
+  border: none;
+  outline: none;
+  font-size: 0.9rem;
+  color: #111827;
+  background: transparent;
+}
+
+.admin-input-wrap input::placeholder {
+  color: #9ca3af;
+}
+
+.admin-eye-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.admin-error-msg {
+  color: #e53e3e;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+/* Sign In Button */
+.admin-btn-signin {
+  width: 100%;
+  padding: 13px;
+  background: #d97706;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.admin-btn-signin:hover {
+  background: #b45309;
+}
+
+/* Back Link */
+.admin-back-link {
+  text-align: center;
+  font-size: 0.83rem;
+  color: #6b7280;
+  margin-top: 16px;
+}
+
+.admin-back-link a {
+  color: #d97706;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.admin-back-link a:hover {
+  text-decoration: underline;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .admin-wrapper {
+    flex-direction: column;
+  }
+  .admin-left {
+    width: 100%;
+    padding: 36px 28px;
+  }
+  .admin-features {
+    display: none;
+  }
+  .admin-card {
+    padding: 32px 24px;
+  }
+}
+
+/* Remember Me Checkbox */
+.admin-options-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 24px;
+  margin-top: 4px;
+}
+
+.admin-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.admin-remember input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #d97706;
+  cursor: pointer;
+}

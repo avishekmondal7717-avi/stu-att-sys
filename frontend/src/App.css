@@ -1,0 +1,44 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: #f4f6fb;
+  color: #2d3748;
+}
+
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-area {
+  flex: 1;
+  margin-left: 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  transition: margin-left 0.25s ease;
+}
+
+.sidebar-closed .main-area {
+  margin-left: 0;
+}
+
+.sidebar-closed .sidebar {
+  transform: translateX(-260px);
+}
+
+.sidebar {
+  transition: transform 0.25s ease;
+}
+
+.page-content {
+  flex: 1;
+  padding: 28px 32px;
+  background: #f4f6fb;
+  min-height: calc(100vh - 64px);
+}

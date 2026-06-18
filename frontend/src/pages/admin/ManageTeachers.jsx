@@ -1,0 +1,213 @@
+import { useState } from 'react';
+import { Table, Button, Input, Select, Tag, Avatar, Space, Popconfirm, message, Modal, Form, Row, Col } from 'antd';
+import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import PageHeader from '../../components/common/PageHeader';
+import { DEPARTMENTS } from '../../data/dummyData';
+
+const { Option } = Select;
+
+const initialTeachers = [
+  { id: 1, teacherId: 'TCH2024001', fullName: 'Dr. Sourav Ganguly', email: 'sourav.ganguly@email.com', contact: '9876543230', department: 'Computer Science', status: 'Active', photo: 'https://i.pravatar.cc/40?img=60' },
+  { id: 2, teacherId: 'TCH2024002', fullName: 'Prof. Sachin Tendulkar', email: 'sachin.tendulkar@email.com', contact: '9876543231', department: 'Information Technology', status: 'Active', photo: 'https://i.pravatar.cc/40?img=61' },
+  { id: 3, teacherId: 'TCH2024003', fullName: 'Dr. Rahul Dravid', email: 'rahul.dravid@email.com', contact: '9876543232', department: 'Electronics & Communication', status: 'Active', photo: 'https://i.pravatar.cc/40?img=62' },
+];
+
+export default function ManageTeachers() {
+  const [data, setData] = useState(initialTeachers);
+  const [search, setSearch] = useState('');
+  const [filterDept, setFilterDept] = useState('');
+  const [viewTeacher, setViewTeacher] = useState(null);
+
+  // Modal states for Add/Edit
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState(null);
+  const [form] = Form.useForm();
+
+  const filtered = data.filter((t) => {
+    const matchSearch = !search || t.fullName.toLowerCase().includes(search.toLowerCase()) || t.teacherId.toLowerCase().includes(search.toLowerCase());
+    const matchDept = !filterDept || t.department === filterDept;
+    return matchSearch && matchDept;
+  });
+
+  const handleDelete = (id) => {
+    setData(data.filter((t) => t.id !== id));
+    message.success('Teacher record deleted successfully');
+  };
+
+  const handleOpenAdd = () => {
+    setEditingTeacher(null);
+    form.resetFields();
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (teacher) => {
+    setEditingTeacher(teacher);
+    form.setFieldsValue(teacher);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = () => {
+    form.validateFields().then((values) => {
+      // Validate teacherId prefix
+      if (!values.teacherId.startsWith('TCH')) {
+        message.error("Teacher ID must start with 'TCH'");
+        return;
+      }
+
+      if (editingTeacher) {
+        // Edit existing record
+        setData(data.map(t => t.id === editingTeacher.id ? { ...t, ...values } : t));
+        message.success('Teacher record updated successfully');
+      } else {
+        // Add new record
+        const newTeacher = {
+          id: data.length > 0 ? Math.max(...data.map(t => t.id)) + 1 : 1,
+          photo: `https://i.pravatar.cc/40?img=${Math.floor(Math.random() * 30) + 50}`,
+          status: 'Active',
+          ...values
+        };
+        setData([newTeacher, ...data]);
+        message.success('New teacher record created successfully');
+      }
+      setIsModalOpen(false);
+    });
+  };
+
+  const columns = [
+    {
+      title: 'Photo', key: 'photo', width: 70,
+      render: (_, r) => <Avatar src={r.photo} size={36}>{r.fullName[0]}</Avatar>,
+    },
+    {
+      title: 'Full Name', key: 'fullName',
+      render: (_, r) => (
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>{r.fullName}</div>
+          <div style={{ color: '#999', fontSize: 12 }}>{r.email}</div>
+        </div>
+      ),
+    },
+    { title: 'Teacher ID', dataIndex: 'teacherId', key: 'teacherId' },
+    { title: 'Department', dataIndex: 'department', key: 'department' },
+    { title: 'Contact Number', dataIndex: 'contact', key: 'contact' },
+    {
+      title: 'Status', dataIndex: 'status', key: 'status', width: 90,
+      render: (s) => <Tag color={s === 'Active' ? 'success' : 'default'}>{s}</Tag>,
+    },
+    {
+      title: 'Actions', key: 'actions', width: 120,
+      render: (_, r) => (
+        <Space>
+          <Button type="text" icon={<EyeOutlined />} size="small" onClick={() => setViewTeacher(r)} />
+          <Button type="text" icon={<EditOutlined style={{ color: '#d97706' }} />} size="small" onClick={() => handleOpenEdit(r)} />
+          <Popconfirm title="Delete this teacher record?" onConfirm={() => handleDelete(r.id)} okType="danger">
+            <Button type="text" icon={<DeleteOutlined style={{ color: '#ff4d4f' }} />} size="small" />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <PageHeader title="Manage Teachers" subtitle="Centralized teacher registry directory and CRUD hub" breadcrumbs={[{ label: 'Manage Teachers' }]} />
+
+      <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+          <Input
+            prefix={<SearchOutlined style={{ color: '#ccc' }} />}
+            placeholder="Search by name, teacher ID..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: 260 }}
+          />
+          <Select placeholder="All Departments" allowClear style={{ width: 200 }} value={filterDept || undefined} onChange={setFilterDept}>
+            {DEPARTMENTS.map((d) => <Option key={d} value={d}>{d}</Option>)}
+          </Select>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenAdd} style={{ marginLeft: 'auto', background: '#d97706', borderColor: '#d97706' }}>
+            Add Teacher
+          </Button>
+        </div>
+
+        <Table
+          columns={columns}
+          dataSource={filtered}
+          rowKey="id"
+          pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (t, r) => `Showing ${r[0]} to ${r[1]} of ${t} teachers` }}
+          size="middle"
+        />
+      </div>
+
+      {/* View Details Modal */}
+      <Modal title="Teacher Details" open={!!viewTeacher} onCancel={() => setViewTeacher(null)} footer={null} width={500}>
+        {viewTeacher && (
+          <div style={{ padding: '8px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+              <Avatar src={viewTeacher.photo} size={64}>{viewTeacher.fullName[0]}</Avatar>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{viewTeacher.fullName}</div>
+                <div style={{ color: '#666' }}>{viewTeacher.teacherId}</div>
+                <Tag color="success" style={{ marginTop: 4 }}>{viewTeacher.status}</Tag>
+              </div>
+            </div>
+            {[
+              ['Email Address', viewTeacher.email],
+              ['Contact Number', viewTeacher.contact],
+              ['Department', viewTeacher.department],
+            ].map(([label, val]) => (
+              <div key={label} style={{ display: 'flex', borderBottom: '1px solid #f5f5f5', padding: '10px 0' }}>
+                <span style={{ width: 140, color: '#666', fontSize: 13 }}>{label}</span>
+                <span style={{ fontWeight: 500, fontSize: 13 }}>{val}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+
+      {/* Add/Edit Modal */}
+      <Modal
+        title={editingTeacher ? 'Edit Teacher Details' : 'Add New Teacher'}
+        open={isModalOpen}
+        onOk={handleSave}
+        onCancel={() => setIsModalOpen(false)}
+        okText="Save Record"
+        okButtonProps={{ style: { background: '#d97706', borderColor: '#d97706' } }}
+        width={600}
+      >
+        <Form form={form} layout="vertical" style={{ marginTop: 20 }}>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="fullName" label="Full Name" rules={[{ required: true, message: 'Please enter full name' }]}>
+                <Input placeholder="E.g. Dr. Sourav Ganguly" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="teacherId" label="Teacher ID" rules={[{ required: true, message: 'Please enter teacher ID' }]}>
+                <Input placeholder="E.g. TCH2024001" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="email" label="Email Address" rules={[{ required: true, type: 'email', message: 'Please enter a valid email' }]}>
+                <Input placeholder="E.g. teacher@email.com" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="contact" label="Contact Number" rules={[{ required: true, message: 'Please enter contact number' }]}>
+                <Input placeholder="E.g. 9876543210" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item name="department" label="Department" rules={[{ required: true, message: 'Please select department' }]}>
+            <Select placeholder="Choose Department">
+              {DEPARTMENTS.map(d => <Option key={d} value={d}>{d}</Option>)}
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+}

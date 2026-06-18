@@ -1,0 +1,167 @@
+import { useState, useEffect } from 'react';
+import { Table, Button, Input, Select, Tag, Avatar, Space, Popconfirm, message, Modal } from 'antd';
+import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import PageHeader from '../../components/common/PageHeader';
+import { DEPARTMENTS, COURSES, SEMESTERS } from '../../data/dummyData';
+import { studentAPI } from '../../services/api';
+
+const { Option } = Select;
+
+const StudentList = () => {
+  const navigate = useNavigate();
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterDept, setFilterDept] = useState('');
+  const [filterCourse, setFilterCourse] = useState('');
+  const [filterSem, setFilterSem] = useState('');
+  const [viewStudent, setViewStudent] = useState(null);
+
+  const loadStudents = async () => {
+    setLoading(true);
+    try {
+      const res = await studentAPI.getAll({
+        department: filterDept || '',
+        semester: filterSem || ''
+      });
+      setData(res.data);
+    } catch (err) {
+      console.error(err);
+      message.error('Failed to load student list');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStudents();
+  }, [filterDept, filterSem]);
+
+  const handleDelete = async (id) => {
+    try {
+      await studentAPI.delete(id);
+      setData(data.filter((s) => s.id !== id));
+      message.success('Student record deleted successfully');
+    } catch (err) {
+      console.error(err);
+      message.error('Failed to delete student');
+    }
+  };
+
+  const filtered = data.filter((s) => {
+    const matchSearch = !search || 
+      s.fullName.toLowerCase().includes(search.toLowerCase()) || 
+      s.rollNumber.toLowerCase().includes(search.toLowerCase());
+    const matchCourse = !filterCourse || s.course === filterCourse;
+    return matchSearch && matchCourse;
+  });
+
+  const columns = [
+    { title: '#', dataIndex: 'id', key: 'id', width: 50 },
+    {
+      title: 'Photo', key: 'photo', width: 70,
+      render: (_, r) => <Avatar src={r.photo} size={36}>{r.fullName[0]}</Avatar>,
+    },
+    {
+      title: 'Full Name', key: 'fullName',
+      render: (_, r) => (
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>{r.fullName}</div>
+          <div style={{ color: '#999', fontSize: 12 }}>{r.email}</div>
+        </div>
+      ),
+    },
+    { title: 'Roll Number', dataIndex: 'rollNumber', key: 'rollNumber' },
+    { title: 'Department', dataIndex: 'department', key: 'department' },
+    { title: 'Course', dataIndex: 'course', key: 'course' },
+    { title: 'Semester', dataIndex: 'semester', key: 'semester', width: 90, align: 'center' },
+    {
+      title: 'Status', dataIndex: 'status', key: 'status', width: 90,
+      render: (s) => <Tag color={s === 'Active' ? 'success' : 'default'}>{s}</Tag>,
+    },
+    {
+      title: 'Actions', key: 'actions', width: 120,
+      render: (_, r) => (
+        <Space>
+          <Button type="text" icon={<EyeOutlined />} size="small" onClick={() => setViewStudent(r)} />
+          <Button type="text" icon={<EditOutlined />} size="small" onClick={() => navigate(`/students/edit/${r.id}`)} />
+          <Popconfirm title="Delete this student?" onConfirm={() => handleDelete(r.id)} okType="danger">
+            <Button type="text" icon={<DeleteOutlined style={{ color: '#ff4d4f' }} />} size="small" />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <PageHeader title="Students List" breadcrumbs={[{ label: 'Students', path: '/students/list' }, { label: 'Student List' }]} />
+
+      <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+          <Input
+            prefix={<SearchOutlined style={{ color: '#ccc' }} />}
+            placeholder="Search by name, roll number..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: 260 }}
+          />
+          <Select placeholder="All Departments" allowClear style={{ width: 180 }} value={filterDept || undefined} onChange={setFilterDept}>
+            {DEPARTMENTS.map((d) => <Option key={d} value={d}>{d}</Option>)}
+          </Select>
+          <Select placeholder="All Courses" allowClear style={{ width: 150 }} value={filterCourse || undefined} onChange={setFilterCourse}>
+            {COURSES.map((c) => <Option key={c} value={c}>{c}</Option>)}
+          </Select>
+          <Select placeholder="All Semesters" allowClear style={{ width: 150 }} value={filterSem || undefined} onChange={setFilterSem}>
+            {SEMESTERS.map((s) => <Option key={s} value={s}>Semester {s}</Option>)}
+          </Select>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/students/add')} style={{ marginLeft: 'auto', background: '#1e40af' }}>
+            Add Student
+          </Button>
+        </div>
+
+        <Table
+          columns={columns}
+          dataSource={filtered}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (t, r) => `Showing ${r[0]} to ${r[1]} of ${t} students` }}
+          size="middle"
+        />
+      </div>
+
+      <Modal title="Student Details" open={!!viewStudent} onCancel={() => setViewStudent(null)} footer={null} width={500}>
+        {viewStudent && (
+          <div style={{ padding: '8px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+              <Avatar src={viewStudent.photo} size={64}>{viewStudent.fullName[0]}</Avatar>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{viewStudent.fullName}</div>
+                <div style={{ color: '#666' }}>{viewStudent.rollNumber}</div>
+                <Tag color="success" style={{ marginTop: 4 }}>{viewStudent.status}</Tag>
+              </div>
+            </div>
+            {[
+              ['Father\'s Name', viewStudent.fatherName],
+              ['Email', viewStudent.email],
+              ['Contact', viewStudent.contact],
+              ['Department', viewStudent.department],
+              ['Course', viewStudent.course],
+              ['Semester', viewStudent.semester],
+              ['Gender', viewStudent.gender],
+              ['Date of Birth', viewStudent.dob],
+            ].map(([label, val]) => (
+              <div key={label} style={{ display: 'flex', borderBottom: '1px solid #f5f5f5', padding: '10px 0' }}>
+                <span style={{ width: 140, color: '#666', fontSize: 13 }}>{label}</span>
+                <span style={{ fontWeight: 500, fontSize: 13 }}>{val}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+};
+
+export default StudentList;

@@ -1,0 +1,421 @@
+/* Register.css - Matches Smart Attendance System design */
+
+.register-container {
+  display: flex;
+  min-height: 100vh;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ── Left Panel ── */
+.register-left {
+  width: 42%;
+  background: linear-gradient(160deg, #0f1b3d 0%, #1a2b5e 60%, #0d1a3a 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 48px 44px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.register-left::before {
+  content: '';
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 50%;
+  top: -80px;
+  right: -80px;
+}
+
+.register-left::after {
+  content: '';
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 50%;
+  bottom: 60px;
+  left: -60px;
+}
+
+.register-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 52px;
+  position: relative;
+  z-index: 1;
+}
+
+.register-brand-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+}
+
+.register-brand-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  line-height: 1.2;
+  color: white;
+}
+
+.register-brand-accent {
+  color: #60a5fa;
+}
+
+.register-brand-sub {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.72);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.register-features {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.register-feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.register-feature-icon {
+  width: 40px;
+  height: 40px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.register-feature-icon svg {
+  width: 20px;
+  height: 20px;
+  color: white;
+  fill: white;
+}
+
+.register-feature-item h3 {
+  margin: 0 0 4px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.register-feature-item p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.72);
+  line-height: 1.4;
+}
+
+.register-copyright {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Right Panel ── */
+.register-right {
+  flex: 1;
+  background: #f5f7fa;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 24px;
+  overflow-y: auto;
+}
+
+.register-form-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  padding: 36px 36px 32px;
+  width: 100%;
+  max-width: 640px;
+}
+
+/* ── Form Header ── */
+.register-form-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.register-avatar-upload {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 16px;
+  cursor: pointer;
+}
+
+.register-avatar-placeholder {
+  width: 88px;
+  height: 88px;
+  background: #e8ecff;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 2px dashed #3b5bdb;
+  color: #3b5bdb;
+}
+
+.register-avatar-placeholder svg {
+  fill: #3b5bdb;
+}
+
+.register-avatar-placeholder span {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #3b5bdb;
+}
+
+.register-avatar-preview {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #3b5bdb;
+}
+
+.register-camera-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 24px;
+  height: 24px;
+  background: #3b5bdb;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+}
+
+.register-camera-badge svg {
+  fill: white;
+}
+
+.register-form-header h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 4px;
+}
+
+.register-form-header p {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* ── Form Fields ── */
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.register-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.register-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.register-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.register-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.register-input-wrap:focus-within {
+  border-color: #3b5bdb;
+  box-shadow: 0 0 0 3px rgba(59,91,219,0.1);
+}
+
+.register-input-wrap > svg:first-child {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  fill: #9ca3af;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.register-input-wrap input,
+.register-input-wrap select {
+  width: 100%;
+  padding: 9px 36px 9px 36px;
+  border: none;
+  outline: none;
+  font-size: 0.82rem;
+  color: #1a1a2e;
+  background: transparent;
+  border-radius: 8px;
+}
+
+.register-input-wrap select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.register-input-wrap input::placeholder {
+  color: #9ca3af;
+}
+
+.register-input-wrap input[type="date"] {
+  color: #1a1a2e;
+}
+
+.register-eye-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  color: #9ca3af;
+}
+
+.register-eye-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: #9ca3af;
+}
+
+.register-eye-btn:hover svg {
+  fill: #1565c0;
+}
+
+/* ── Submit Button ── */
+.register-submit-btn {
+  width: 100%;
+  padding: 12px;
+  background: #3b5bdb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.register-submit-btn:hover {
+  background: #2f4ac5;
+}
+
+.register-submit-btn:active {
+  transform: scale(0.99);
+}
+
+.register-login-link {
+  text-align: center;
+  font-size: 0.83rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.register-login-link a {
+  color: #3b5bdb;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.register-login-link a:hover {
+  text-decoration: underline;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .register-left {
+    display: none;
+  }
+  .register-right {
+    padding: 24px 16px;
+  }
+  .register-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.register-input-wrap.input-error {
+  border-color: #e53e3e;
+}
+
+.error-msg {
+  color: #e53e3e;
+  font-size: 11px;
+  margin-top: 3px;
+  font-weight: 500;
+}
+
+.register-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ecfdf5;
+  border: 1.5px solid #10b981;
+  color: #065f46;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  animation: slideDown 0.3s ease-out;
+}
+
+.register-success-banner svg {
+  width: 20px;
+  height: 20px;
+  fill: #10b981;
+  flex-shrink: 0;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

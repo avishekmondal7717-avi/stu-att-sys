@@ -1,0 +1,256 @@
+import { useState } from 'react';
+import { Table, Button, Input, Select, Tag, Avatar, Space, Popconfirm, message, Modal, Form, Row, Col } from 'antd';
+import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import PageHeader from '../../components/common/PageHeader';
+import { students as initialStudents, DEPARTMENTS, COURSES, SEMESTERS } from '../../data/dummyData';
+
+const { Option } = Select;
+
+export default function ManageStudents() {
+  const [data, setData] = useState(initialStudents);
+  const [search, setSearch] = useState('');
+  const [filterDept, setFilterDept] = useState('');
+  const [filterCourse, setFilterCourse] = useState('');
+  const [filterSem, setFilterSem] = useState('');
+  const [viewStudent, setViewStudent] = useState(null);
+  
+  // Modal states for Add/Edit
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [form] = Form.useForm();
+
+  const filtered = data.filter((s) => {
+    const matchSearch = !search || s.fullName.toLowerCase().includes(search.toLowerCase()) || s.rollNumber.toLowerCase().includes(search.toLowerCase());
+    const matchDept = !filterDept || s.department === filterDept;
+    const matchCourse = !filterCourse || s.course === filterCourse;
+    const matchSem = !filterSem || s.semester === filterSem;
+    return matchSearch && matchDept && matchCourse && matchSem;
+  });
+
+  const handleDelete = (id) => {
+    setData(data.filter((s) => s.id !== id));
+    message.success('Student record deleted successfully');
+  };
+
+  const handleOpenAdd = () => {
+    setEditingStudent(null);
+    form.resetFields();
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (student) => {
+    setEditingStudent(student);
+    form.setFieldsValue(student);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = () => {
+    form.validateFields().then((values) => {
+      if (editingStudent) {
+        // Edit existing student record
+        setData(data.map(s => s.id === editingStudent.id ? { ...s, ...values } : s));
+        message.success('Student record updated successfully');
+      } else {
+        // Add new student record
+        const newStudent = {
+          id: data.length > 0 ? Math.max(...data.map(s => s.id)) + 1 : 1,
+          photo: `https://i.pravatar.cc/40?img=${Math.floor(Math.random() * 70)}`,
+          status: 'Active',
+          ...values
+        };
+        setData([newStudent, ...data]);
+        message.success('New student record created successfully');
+      }
+      setIsModalOpen(false);
+    });
+  };
+
+  const columns = [
+    {
+      title: 'Photo', key: 'photo', width: 70,
+      render: (_, r) => <Avatar src={r.photo} size={36}>{r.fullName[0]}</Avatar>,
+    },
+    {
+      title: 'Full Name', key: 'fullName',
+      render: (_, r) => (
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>{r.fullName}</div>
+          <div style={{ color: '#999', fontSize: 12 }}>{r.email}</div>
+        </div>
+      ),
+    },
+    { title: 'Roll Number', dataIndex: 'rollNumber', key: 'rollNumber' },
+    { title: 'Department', dataIndex: 'department', key: 'department' },
+    { title: 'Course', dataIndex: 'course', key: 'course' },
+    { title: 'Semester', dataIndex: 'semester', key: 'semester', width: 90, align: 'center' },
+    {
+      title: 'Status', dataIndex: 'status', key: 'status', width: 90,
+      render: (s) => <Tag color={s === 'Active' ? 'success' : 'default'}>{s}</Tag>,
+    },
+    {
+      title: 'Actions', key: 'actions', width: 120,
+      render: (_, r) => (
+        <Space>
+          <Button type="text" icon={<EyeOutlined />} size="small" onClick={() => setViewStudent(r)} />
+          <Button type="text" icon={<EditOutlined style={{ color: '#d97706' }} />} size="small" onClick={() => handleOpenEdit(r)} />
+          <Popconfirm title="Delete this student record?" onConfirm={() => handleDelete(r.id)} okType="danger">
+            <Button type="text" icon={<DeleteOutlined style={{ color: '#ff4d4f' }} />} size="small" />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <PageHeader title="Manage Students" subtitle="Centralized student registration directory and CRUD hub" breadcrumbs={[{ label: 'Manage Students' }]} />
+
+      <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+          <Input
+            prefix={<SearchOutlined style={{ color: '#ccc' }} />}
+            placeholder="Search by name, roll number..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: 260 }}
+          />
+          <Select placeholder="All Departments" allowClear style={{ width: 180 }} value={filterDept || undefined} onChange={setFilterDept}>
+            {DEPARTMENTS.map((d) => <Option key={d} value={d}>{d}</Option>)}
+          </Select>
+          <Select placeholder="All Courses" allowClear style={{ width: 150 }} value={filterCourse || undefined} onChange={setFilterCourse}>
+            {COURSES.map((c) => <Option key={c} value={c}>{c}</Option>)}
+          </Select>
+          <Select placeholder="All Semesters" allowClear style={{ width: 150 }} value={filterSem || undefined} onChange={setFilterSem}>
+            {SEMESTERS.map((s) => <Option key={s} value={s}>Semester {s}</Option>)}
+          </Select>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenAdd} style={{ marginLeft: 'auto', background: '#d97706', borderColor: '#d97706' }}>
+            Add Student
+          </Button>
+        </div>
+
+        <Table
+          columns={columns}
+          dataSource={filtered}
+          rowKey="id"
+          pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (t, r) => `Showing ${r[0]} to ${r[1]} of ${t} students` }}
+          size="middle"
+        />
+      </div>
+
+      {/* View Student details Modal */}
+      <Modal title="Student Details" open={!!viewStudent} onCancel={() => setViewStudent(null)} footer={null} width={500}>
+        {viewStudent && (
+          <div style={{ padding: '8px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+              <Avatar src={viewStudent.photo} size={64}>{viewStudent.fullName[0]}</Avatar>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{viewStudent.fullName}</div>
+                <div style={{ color: '#666' }}>{viewStudent.rollNumber}</div>
+                <Tag color="success" style={{ marginTop: 4 }}>{viewStudent.status}</Tag>
+              </div>
+            </div>
+            {[
+              ['Father\'s Name', viewStudent.fatherName],
+              ['Email', viewStudent.email],
+              ['Contact', viewStudent.contact],
+              ['Department', viewStudent.department],
+              ['Course', viewStudent.course],
+              ['Semester', viewStudent.semester],
+              ['Gender', viewStudent.gender],
+              ['Date of Birth', viewStudent.dob],
+            ].map(([label, val]) => (
+              <div key={label} style={{ display: 'flex', borderBottom: '1px solid #f5f5f5', padding: '10px 0' }}>
+                <span style={{ width: 140, color: '#666', fontSize: 13 }}>{label}</span>
+                <span style={{ fontWeight: 500, fontSize: 13 }}>{val}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+
+      {/* Add/Edit Modal */}
+      <Modal
+        title={editingStudent ? 'Edit Student Details' : 'Add New Student'}
+        open={isModalOpen}
+        onOk={handleSave}
+        onCancel={() => setIsModalOpen(false)}
+        okText="Save Record"
+        okButtonProps={{ style: { background: '#d97706', borderColor: '#d97706' } }}
+        width={650}
+      >
+        <Form form={form} layout="vertical" style={{ marginTop: 20 }}>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="fullName" label="Full Name" rules={[{ required: true, message: 'Please enter name' }]}>
+                <Input placeholder="E.g. Aarav Sharma" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="rollNumber" label="Roll Number" rules={[{ required: true, message: 'Please enter roll number' }]}>
+                <Input placeholder="E.g. CS2024001" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="email" label="Email Address" rules={[{ required: true, type: 'email', message: 'Please enter a valid email' }]}>
+                <Input placeholder="E.g. student@email.com" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="contact" label="Contact Number" rules={[{ required: true, message: 'Please enter contact number' }]}>
+                <Input placeholder="E.g. 9876543210" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="department" label="Department" rules={[{ required: true, message: 'Please select department' }]}>
+                <Select placeholder="Choose Department">
+                  {DEPARTMENTS.map(d => <Option key={d} value={d}>{d}</Option>)}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="course" label="Course" rules={[{ required: true, message: 'Please select course' }]}>
+                <Select placeholder="Choose Course">
+                  {COURSES.map(c => <Option key={c} value={c}>{c}</Option>)}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="semester" label="Semester" rules={[{ required: true, message: 'Please select semester' }]}>
+                <Select placeholder="Choose Sem">
+                  {SEMESTERS.map(s => <Option key={s} value={s}>Semester {s}</Option>)}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="gender" label="Gender" rules={[{ required: true, message: 'Please select gender' }]}>
+                <Select placeholder="Choose Gender">
+                  <Option value="Male">Male</Option>
+                  <Option value="Female">Female</Option>
+                  <Option value="Other">Other</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="dob" label="Date of Birth" rules={[{ required: true, message: 'Please enter DOB' }]}>
+                <Input placeholder="YYYY-MM-DD" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item name="fatherName" label="Father's Name" rules={[{ required: true, message: 'Please enter father name' }]}>
+            <Input placeholder="E.g. Raj Sharma" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+}

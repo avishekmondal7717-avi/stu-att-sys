@@ -1,0 +1,120 @@
+.sidebar {
+  width: 260px;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0f1f45 0%, #152a5e 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.logo-icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.logo-text {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.logo-sub {
+  display: block;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 12px;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  transition: background 0.18s, color 0.18s;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.nav-item.active {
+  background: #3B5BDB;
+  color: #fff;
+  font-weight: 600;
+}
+
+.logout-btn {
+  margin: 0 12px 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.logout-btn:hover {
+  background: rgba(255, 80, 80, 0.15);
+  color: #ff7070;
+}
+
+.sidebar-illustration {
+  padding: 0 10px 10px;
+}
+
+.sidebar-illustration svg {
+  width: 100%;
+}
+
+/* Admin Theme Overrides */
+.sidebar.admin-theme {
+  background: linear-gradient(180deg, #1e1302 0%, #2e1e05 100%) !important;
+}
+
+.sidebar.admin-theme .admin-border {
+  border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.sidebar.admin-theme .admin-sub-text {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.sidebar.admin-theme .nav-item.active {
+  background: #d97706 !important;
+  color: #fff;
+}
+
+.sidebar.admin-theme .nav-item:hover:not(.active):not(.logout-btn) {
+  background: rgba(245, 158, 11, 0.08);
+  color: #f59e0b;
+}
