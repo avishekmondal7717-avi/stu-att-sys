@@ -4,6 +4,54 @@ import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined
 import PageHeader from '../../components/common/PageHeader';
 import { DEPARTMENTS, COURSES, SEMESTERS } from '../../data/dummyData';
 import { studentAPI } from '../../services/api';
+import { Button as ChakraButton, Switch as ChakraSwitch, HStack, useToast } from '@chakra-ui/react';
+import { Trash2 } from 'lucide-react';
+
+// Biometric & Status override controls component
+export function StudentActionControls({ student, onRefresh }) {
+  const toast = useToast();
+
+  const handleFlushEmbedding = async () => {
+    try {
+      // Sets embedding = NULL and status = 'Pending Verification'
+      await studentAPI.update(student.id, { ...student, status: 'Pending Verification', flushBiometrics: true });
+      toast({ title: 'Biometric template flushed. Re-scan required.', status: 'info', duration: 3000, isClosable: true });
+      onRefresh();
+    } catch (err) {
+      toast({ title: 'Operation failed.', status: 'error', duration: 3000, isClosable: true });
+    }
+  };
+
+  const handleToggleStatus = async (e) => {
+    const newStatus = e.target.checked ? 'Active' : 'Suspended';
+    try {
+      await studentAPI.update(student.id, { ...student, status: newStatus });
+      toast({ title: `Account status updated to ${newStatus}`, status: 'success', duration: 3000, isClosable: true });
+      onRefresh();
+    } catch (err) {
+      toast({ title: 'Status sync failed.', status: 'error', duration: 3000, isClosable: true });
+    }
+  };
+
+  return (
+    <HStack spacing={4}>
+      <ChakraSwitch 
+        isChecked={student.status === 'Active'} 
+        colorScheme="green" 
+        onChange={handleToggleStatus}
+      />
+      <ChakraButton 
+        leftIcon={<Trash2 size={16} />} 
+        colorScheme="red" 
+        variant="ghost" 
+        size="sm" 
+        onClick={handleFlushEmbedding}
+      >
+        Flush Face ID
+      </ChakraButton>
+    </HStack>
+  );
+}
 
 const { Option } = Select;
 
@@ -119,7 +167,13 @@ export default function ManageStudents() {
     { title: 'Semester', dataIndex: 'semester', key: 'semester', width: 90, align: 'center' },
     {
       title: 'Status', dataIndex: 'status', key: 'status', width: 90,
-      render: (s) => <Tag color={s === 'Active' ? 'success' : 'default'}>{s}</Tag>,
+      render: (s) => <Tag color={s === 'Active' ? 'success' : s === 'Suspended' ? 'error' : 'warning'}>{s}</Tag>,
+    },
+    {
+      title: 'Biometrics Override', key: 'biometrics', width: 200,
+      render: (_, r) => (
+        <StudentActionControls student={r} onRefresh={fetchStudents} />
+      ),
     },
     {
       title: 'Actions', key: 'actions', width: 120,
@@ -181,7 +235,7 @@ export default function ManageStudents() {
               <div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{viewStudent.fullName}</div>
                 <div style={{ color: '#666' }}>{viewStudent.rollNumber}</div>
-                <Tag color="success" style={{ marginTop: 4 }}>{viewStudent.status}</Tag>
+                <Tag color={viewStudent.status === 'Active' ? 'success' : viewStudent.status === 'Suspended' ? 'error' : 'warning'} style={{ marginTop: 4 }}>{viewStudent.status}</Tag>
               </div>
             </div>
             {[
@@ -199,6 +253,11 @@ export default function ManageStudents() {
                 <span style={{ fontWeight: 500, fontSize: 13 }}>{val}</span>
               </div>
             ))}
+
+            <div style={{ marginTop: 20, paddingTop: 15, borderTop: '1px dashed #e2e8f0' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#4a5568', marginBottom: 10 }}>Biometric Override & Status Controls</div>
+              <StudentActionControls student={viewStudent} onRefresh={() => { fetchStudents(); setViewStudent(null); }} />
+            </div>
           </div>
         )}
       </Modal>

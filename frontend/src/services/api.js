@@ -194,3 +194,11 @@ export const dashboardAPI = {
     return request('/dashboard/stats');
   },
 };
+
+// ── Admin API ─────────────────────────────────────────────────
+export const adminAPI = {
+  getAuditLogs: async () => {
+    return request('/admin/audit-logs');
+  }
+};
+

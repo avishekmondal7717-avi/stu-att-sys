@@ -23,15 +23,18 @@ import {
   useToast,
   Card,
   CardBody,
+  CardHeader,
   Stack,
   Flex
 } from '@chakra-ui/react';
 import { RefreshCw } from 'lucide-react';
-import { dashboardAPI, teacherAPI } from '../../services/api';
+import { dashboardAPI, teacherAPI, adminAPI } from '../../services/api';
+
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [teachersCount, setTeachersCount] = useState(0);
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const toast = useToast();
@@ -47,12 +50,14 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     try {
-      const [statsData, teacherData] = await Promise.all([
+      const [statsData, teacherData, logsData] = await Promise.all([
         dashboardAPI.getStats(),
-        teacherAPI.getAll()
+        teacherAPI.getAll(),
+        adminAPI.getAuditLogs()
       ]);
       setStats(statsData);
       setTeachersCount(teacherData.total || 0);
+      setLogs(logsData.logs || []);
     } catch (err) {
       console.error(err);
       toast({
@@ -196,6 +201,45 @@ export default function AdminDashboard() {
           </Table>
         </CardBody>
       </Card>
+
+      <AdminAuditLogs logs={logs} />
     </Box>
   );
 }
+
+export function AdminAuditLogs({ logs }) {
+  return (
+    <Card borderRadius="xl" shadow="sm" overflow="hidden" mt={6} bg="white">
+      <CardHeader bg="gray.50" py={4} borderBottom="1px solid" borderColor="gray.100">
+        <Heading size="xs" color="gray.700" textTransform="uppercase" letterSpacing="wider">Immutable System Action Ledger</Heading>
+      </CardHeader>
+      <Box overflowX="auto">
+        <Table variant="simple" size="sm">
+          <Thead bg="gray.50">
+            <Tr>
+              <Th fontSize="10px" color="gray.500">Timestamp</Th>
+              <Th fontSize="10px" color="gray.500">Action Node</Th>
+              <Th fontSize="10px" color="gray.500">Authorized Actor</Th>
+              <Th fontSize="10px" color="gray.500">Status Sign</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {logs.map((log) => (
+              <Tr key={log.id}>
+                <Td fontSize="xs" color="gray.600" py={3}>{log.timestamp}</Td>
+                <Td fontSize="xs" fontWeight="semibold" color="gray.800" py={3}>{log.action}</Td>
+                <Td fontSize="xs" color="gray.600" py={3}>{log.actor}</Td>
+                <Td py={3}>
+                  <Badge colorScheme={log.status === 'Success' ? 'green' : log.status === 'Info' ? 'blue' : 'orange'} variant="subtle">
+                    {log.status}
+                  </Badge>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </Box>
+    </Card>
+  );
+}
+

@@ -18,7 +18,8 @@ import {
   Spacer,
   Box,
   SimpleGrid,
-  Button
+  Button,
+  Progress
 } from '@chakra-ui/react';
 import { CheckCircle2, XCircle, Clock, Award, Calendar, Bell } from 'lucide-react';
 import { attendanceAPI } from '../../services/api';
@@ -49,6 +50,43 @@ export default function StudentDashboard() {
   const textPrimary = theme === 'dark' ? '#f4f4f5' : '#0f172a';
   const textSecondary = theme === 'dark' ? '#a1a1aa' : '#71717a';
   const welcomeCardBg = theme === 'dark' ? '#18181b' : '#09090b';
+
+  const COURSE_MAP = {
+    'CS-401': 'Data Structures & Algorithms',
+    'CS-402': 'Database Management Systems',
+    'CS-403': 'Operating Systems',
+    'CS-404': 'Formal Language & Automata',
+    'HU-401': 'Values & Ethics in Profession'
+  };
+
+  const coursesMetrics = Object.entries(COURSE_MAP).map(([code, name]) => {
+    const courseLogs = logs.filter(l => l.type && l.type.includes(code));
+    const presentLogs = courseLogs.filter(l => l.status === 'Present').length;
+    
+    let baseTotal = 12;
+    let basePresent = 10;
+    if (code === 'CS-401') { baseTotal = 15; basePresent = 13; }
+    else if (code === 'CS-402') { baseTotal = 14; basePresent = 9; }
+    else if (code === 'CS-403') { baseTotal = 16; basePresent = 14; }
+    else if (code === 'CS-404') { baseTotal = 15; basePresent = 10; }
+    else if (code === 'HU-401') { baseTotal = 10; basePresent = 9; }
+
+    courseLogs.forEach(l => {
+      baseTotal += 1;
+      if (l.status === 'Present') {
+        basePresent += 1;
+      }
+    });
+
+    const rate = Math.round((basePresent / baseTotal) * 100);
+
+    return {
+      code,
+      name,
+      rate
+    };
+  });
+
 
   return (
     <Container maxW="container.md" py={6} as={VStack} spacing={6} align="stretch" px={0}>

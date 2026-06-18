@@ -162,6 +162,18 @@ def init_db():
     )
     """)
 
+    # Create audit_logs table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id SERIAL PRIMARY KEY,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        action TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        status TEXT NOT NULL
+    )
+    """)
+
+
     # Seed active sessions
     cursor.execute("SELECT COUNT(*) FROM active_sessions")
     if cursor.fetchone()[0] == 0:

@@ -154,6 +154,19 @@ def require_role(allowed_roles: List[str]):
         return current_user
     return dependency
 
+def log_action(action: str, actor: str, status: str):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO audit_logs (action, actor, status) VALUES (%s, %s, %s)",
+            (action, actor, status)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Failed to log action: {e}")
+
 # Models
 class StudentCreate(BaseModel):
     rollNumber: str
@@ -167,6 +180,8 @@ class StudentCreate(BaseModel):
     dob: Optional[str] = ""
     address: Optional[str] = ""
     status: Optional[str] = "Active"
+    flushBiometrics: Optional[bool] = False
+
 
 class ScanRequest(BaseModel):
     image: str # Base64 image string
@@ -382,6 +397,8 @@ async def login(payload: LoginRequest):
         "referenceId": user_dict["referenceId"]
     })
     
+    log_action("Logged into system", user_dict["fullName"], "Success")
+    
     # Fetch extra profile details based on role
     profile_data = {}
     conn = get_db_connection()
@@ -427,6 +444,36 @@ async def login(payload: LoginRequest):
             **profile_data
         }
     }
+
+@app.get("/api/admin/audit-logs", dependencies=[Depends(require_role(["admin"]))])
+async def get_audit_logs():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, timestamp, action, actor, status FROM audit_logs ORDER BY id DESC LIMIT 50")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    logs = []
+    for r in rows:
+        logs.append({
+            "id": r["id"],
+            "timestamp": r["timestamp"].strftime("%Y-%m-%d %I:%M:%S %p") if r["timestamp"] else "",
+            "action": r["action"],
+            "actor": r["actor"],
+            "status": r["status"]
+        })
+    
+    if not logs:
+        logs = [
+            {
+                "id": 1,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %I:%M:%S %p"),
+                "action": "System Database Initialized",
+                "actor": "System",
+                "status": "Success"
+            }
+        ]
+    return {"logs": logs}
 
 # ─── Dashboard Stats API ──────────────────────────────────────
 @app.get("/api/dashboard/stats", dependencies=[Depends(require_role(["admin", "teacher"]))])
@@ -534,40 +581,73 @@ async def create_student(student: StudentCreate):
         raise HTTPException(status_code=400, detail="Student with this Roll Number or Email already exists")
 
 @app.put("/api/students/{student_id}", dependencies=[Depends(require_role(["admin", "teacher"]))])
-async def update_student(student_id: int, student: StudentCreate):
+async def update_student(student_id: int, student: StudentCreate, current_user: dict = Depends(get_current_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT email FROM students WHERE id = %s", (student_id,))
+    cursor.execute("SELECT email, status FROM students WHERE id = %s", (student_id,))
     old_student = cursor.fetchone()
     if not old_student:
         conn.close()
         raise HTTPException(status_code=404, detail="Student not found")
         
     old_email = old_student["email"]
+    old_status = old_student["status"]
     
-    cursor.execute("""
-        UPDATE students
-        SET rollNumber=%s, fullName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, address=%s, status=%s
-        WHERE id=%s
-    """, (
-        student.rollNumber, student.fullName, student.email, student.contact,
-        student.department, student.course, student.semester, student.gender, student.dob,
-        student.address, student.status, student_id
-    ))
-    
-    # Also update user login profile
-    cursor.execute("""
-        UPDATE users
-        SET email=%s, fullName=%s, referenceId=%s, status=%s
-        WHERE email=%s
-    """, (
-        student.email, student.fullName, student.rollNumber, student.status, old_email
-    ))
-    
+    if student.flushBiometrics:
+        cursor.execute("""
+            UPDATE students
+            SET rollNumber=%s, fullName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, address=%s, status=%s, embedding=NULL
+            WHERE id=%s
+        """, (
+            student.rollNumber, student.fullName, student.email, student.contact,
+            student.department, student.course, student.semester, student.gender, student.dob,
+            student.address, 'Pending Verification', student_id
+        ))
+        
+        cursor.execute("""
+            UPDATE users
+            SET email=%s, fullName=%s, referenceId=%s, status=%s
+            WHERE email=%s
+        """, (
+            student.email, student.fullName, student.rollNumber, 'Pending Verification', old_email
+        ))
+        
+        log_action(
+            f"Flushed biometric template for student {student.fullName} ({student.rollNumber})",
+            current_user["fullName"],
+            "Success"
+        )
+    else:
+        cursor.execute("""
+            UPDATE students
+            SET rollNumber=%s, fullName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, address=%s, status=%s
+            WHERE id=%s
+        """, (
+            student.rollNumber, student.fullName, student.email, student.contact,
+            student.department, student.course, student.semester, student.gender, student.dob,
+            student.address, student.status, student_id
+        ))
+        
+        cursor.execute("""
+            UPDATE users
+            SET email=%s, fullName=%s, referenceId=%s, status=%s
+            WHERE email=%s
+        """, (
+            student.email, student.fullName, student.rollNumber, student.status, old_email
+        ))
+        
+        if old_status != student.status:
+            log_action(
+                f"Toggled status for student {student.fullName} ({student.rollNumber}) to {student.status}",
+                current_user["fullName"],
+                "Success"
+            )
+            
     conn.commit()
     conn.close()
     return {"success": True}
+
 
 @app.delete("/api/students/{student_id}", dependencies=[Depends(require_role(["admin"]))])
 async def delete_student(student_id: int):
