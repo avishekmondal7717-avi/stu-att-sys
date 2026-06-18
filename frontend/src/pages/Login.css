@@ -1,3 +1,7 @@
+/* ==========================================================================
+   MINIMALIST SAAS DESIGN SYSTEM - LOGIN PAGE
+   ========================================================================== */
+
 * {
   margin: 0;
   padding: 0;
@@ -5,257 +9,177 @@
 }
 
 body {
-  font-family: "Inter", "Segoe UI", sans-serif;
-  background: #f0f2f8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: #f9fafb; /* Soft light slate background */
+  color: #0f172a;
 }
 
-/* ── Layout ── */
+/* Page Wrapper - Centered layout, no split panel */
 .login-wrapper {
   display: flex;
   min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
 }
 
-/* ── Left Panel ── */
+/* Hide legacy split-panel left brand section completely */
 .left-panel {
-  width: 38%;
-  background: linear-gradient(160deg, #0f1b3d 0%, #1a2b5e 60%, #0d1a3a 100%);
-  padding: 48px 44px;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  overflow: hidden;
+  display: none !important;
 }
 
-.left-panel::before {
-  content: "";
-  position: absolute;
-  top: -80px;
-  right: -80px;
-  width: 300px;
-  height: 300px;
-  border-radius: 50%;
-  background: rgba(96, 165, 250, 0.06);
-  pointer-events: none;
-}
-
-.left-panel::after {
-  content: "";
-  position: absolute;
-  bottom: -60px;
-  left: -60px;
-  width: 220px;
-  height: 220px;
-  border-radius: 50%;
-  background: rgba(96, 165, 250, 0.05);
-  pointer-events: none;
-}
-
-/* Brand */
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.brand-icon {
-  flex-shrink: 0;
-}
-
-.brand-text h1 {
-  font-size: 1.65rem;
-  font-weight: 700;
-  color: #fff;
-  line-height: 1.25;
-}
-
-.brand-text h1 span {
-  color: #60a5fa;
-}
-
-.brand-desc {
-  color: #94a3c0;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  margin-bottom: 48px;
-  padding-left: 2px;
-}
-
-.brand-text::after {
-  content: "";
-  display: block;
-  width: 36px;
-  height: 2px;
-  background: #3b5bdb;
-  margin-top: 8px;
-}
-
-/* Features */
-.features {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  flex: 1;
-}
-
-.feature-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.feature-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background: rgba(59, 91, 219, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.feature-item h3 {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #e2e8f0;
-  margin-bottom: 4px;
-}
-
-.feature-item p {
-  font-size: 0.82rem;
-  color: #94a3c0;
-  line-height: 1.5;
-}
-
-/* Copyright */
-.copyright {
-  font-size: 0.75rem;
-  color: #5a6a8a;
-  margin-top: 40px;
-}
-
-/* ── Right Panel ── */
+/* Right Panel becomes the main centered container */
 .right-panel {
-  flex: 1;
-  background: #f0f2f8;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 32px;
+  width: 100%;
 }
 
-/* Login Card */
+/* Minimalist Login Card */
 .login-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 44px 40px;
+  background: #ffffff;
+  border: 1px solid #e4e4e7; /* Thin zinc border */
+  border-radius: 12px;
+  padding: 40px;
   width: 100%;
-  max-width: 460px;
-  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.07);
+  max-width: 420px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
-  align-items: stretch;
 }
 
-.avatar {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: #e8ecff;
+/* Brand/Logo inside the card */
+.card-logo {
   display: flex;
-  align-items: center;
   justify-content: center;
-  margin: 0 auto 20px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(59, 91, 219, 0.1);
-  transition: background-color 0.4s ease, box-shadow 0.4s ease;
-}
-
-.avatar-icon-container {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  opacity: 0;
-  transform: scale(0.6) rotate(-45deg);
-}
-
-.avatar-icon-container.active {
-  opacity: 1;
-  transform: scale(1) rotate(0deg);
+  margin-bottom: 24px;
 }
 
 .login-card h2 {
-  font-size: 1.55rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: #111827;
+  color: #09090b; /* Pitch black */
   text-align: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
-  font-size: 0.9rem;
-  color: #6b7280;
+  font-size: 0.875rem;
+  color: #71717a; /* Muted zinc */
   text-align: center;
-  margin-bottom: 28px;
-  animation: slideUpFade 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  margin-bottom: 24px;
 }
 
-/* Fields */
+/* Segmented Control / Role Selector */
+.role-selector {
+  position: relative;
+  display: flex;
+  background: #f4f4f5; /* Light gray fill */
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  border: 1px solid #e4e4e7;
+  z-index: 1;
+}
+
+.role-slider {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  background: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  z-index: 0;
+}
+
+.role-slider.slide-left {
+  left: 4px;
+  right: 50%;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.role-slider.slide-right {
+  left: 50%;
+  right: 4px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.role-tab {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #71717a;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  position: relative;
+  z-index: 1;
+  outline: none;
+}
+
+.role-tab.active {
+  color: #09090b;
+}
+
+/* Form Fields */
 .field {
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
 .field label {
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
-  margin-bottom: 8px;
+  color: #27272a;
+  margin-bottom: 6px;
 }
 
-/* ── FIXED INPUT WRAP ── */
+/* Inputs */
 .input-wrap {
   display: flex;
   align-items: center;
-  gap: 10px;
-  border: 1.5px solid #e5e7eb;
+  gap: 8px;
+  border: 1px solid #e4e4e7;
   border-radius: 8px;
-  padding: 0 14px;
-  background: #fff;
-  transition: border-color 0.2s;
+  padding: 0 12px;
+  background: #ffffff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .input-wrap:focus-within {
-  border-color: #3b5bdb;
+  border-color: #09090b; /* Solid dark focus ring */
+  box-shadow: 0 0 0 2px rgba(9, 9, 11, 0.05);
 }
 
 .input-wrap.input-error {
-  border-color: #e53e3e;
+  border-color: #ef4444;
 }
 
 .input-icon {
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  color: #a1a1aa;
 }
 
 .input-wrap input {
   flex: 1;
   min-width: 0;
-  padding: 12px 0;
+  padding: 10px 0;
   border: none;
   outline: none;
-  font-size: 0.9rem;
-  color: #111827;
+  font-size: 0.875rem;
+  color: #09090b;
   background: transparent;
 }
 
 .input-wrap input::placeholder {
-  color: #9ca3af;
+  color: #a1a1aa;
 }
 
 .eye-btn {
@@ -266,22 +190,26 @@ body {
   align-items: center;
   padding: 0;
   flex-shrink: 0;
+  color: #71717a;
+  transition: color 0.15s;
 }
 
-/* Error message */
+.eye-btn:hover {
+  color: #09090b;
+}
+
 .error-msg {
-  color: #e53e3e;
-  font-size: 12px;
-  margin-top: 5px;
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 4px;
 }
 
-/* Options row */
+/* Options (Remember Me & Forgot Password) */
 .options-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  margin-top: 4px;
 }
 
 .remember {
@@ -290,57 +218,100 @@ body {
   gap: 8px;
   cursor: pointer;
   font-size: 0.875rem;
-  color: #374151;
+  color: #71717a;
+  user-select: none;
 }
 
 .remember input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #3b5bdb;
+  width: 14px;
+  height: 14px;
+  accent-color: #09090b;
   cursor: pointer;
 }
 
 .forgot {
   font-size: 0.875rem;
-  color: #3b5bdb;
+  color: #71717a;
   text-decoration: none;
-  font-weight: 500;
+  transition: color 0.15s;
 }
 
 .forgot:hover {
+  color: #09090b;
   text-decoration: underline;
 }
 
 /* Buttons */
 .btn-signin {
   width: 100%;
-  padding: 13px;
-  background: #3b5bdb;
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 600;
+  padding: 10px 16px;
+  background: #09090b; /* Vercel dark button */
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 500;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s;
-  letter-spacing: 0.01em;
+  transition: background-color 0.15s ease;
+  letter-spacing: -0.01em;
 }
 
 .btn-signin:hover {
-  background: #2f4ac5;
+  background: #27272a;
 }
 
-/* ── Register Link ── */
+/* Secondary Divider */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+  color: #a1a1aa;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e4e4e7;
+}
+
+/* Admin Portal / Register Links */
+.btn-admin {
+  width: 100%;
+  padding: 10px 16px;
+  background: #ffffff;
+  color: #09090b;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-admin:hover {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+}
+
 .register-link {
   text-align: center;
-  font-size: 0.83rem;
-  color: #6b7280;
-  margin: 12px 0 0 0;
-  animation: slideUpFade 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  font-size: 0.875rem;
+  color: #71717a;
+  margin-top: 20px;
 }
 
 .register-link a {
-  color: #3b5bdb;
+  color: #09090b;
   font-weight: 600;
   text-decoration: none;
 }
@@ -349,132 +320,11 @@ body {
   text-decoration: underline;
 }
 
-/* Divider */
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 20px 0;
-  color: #9ca3af;
-  font-size: 0.85rem;
-}
-
-.divider::before,
-.divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: #e5e7eb;
-}
-
-.btn-admin {
-  width: 100%;
-  padding: 12px;
-  background: #fff;
-  color: #3b5bdb;
-  font-size: 0.9rem;
-  font-weight: 500;
-  border: 1.5px solid #3b5bdb;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: background 0.2s;
-}
-
-.btn-admin:hover {
-  background: #eef2ff;
-}
-
-/* ── Responsive ── */
-@media (max-width: 768px) {
-  .login-wrapper {
-    flex-direction: column;
-  }
-  .left-panel {
-    width: 100%;
-    padding: 36px 28px;
-  }
-  .features {
-    display: none;
-  }
-  .login-card {
-    padding: 32px 24px;
-  }
-}
-
-/* Segmented Role Selector */
-.role-selector {
-  position: relative;
-  display: flex;
-  background: #f3f4f6;
-  padding: 4px;
-  border-radius: 8px;
-  margin-bottom: 24px;
-  border: 1px solid #e5e7eb;
-  z-index: 1;
-}
-
-.role-slider {
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(59, 91, 219, 0.15);
-  z-index: 0;
-}
-
-/* Student active (slide-left) */
-.role-slider.slide-left {
-  left: 4px;
-  right: 50%;
-  transition: left 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), right 0.4s cubic-bezier(0.25, 1, 0.5, 1) 0.05s;
-}
-
-/* Teacher active (slide-right) */
-.role-slider.slide-right {
-  left: 50%;
-  right: 4px;
-  transition: left 0.4s cubic-bezier(0.25, 1, 0.5, 1) 0.05s, right 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.role-tab {
-  flex: 1;
-  border: none;
-  background: none;
-  padding: 10px 12px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #4b5563;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: color 0.3s ease, transform 0.1s ease;
-  outline: none;
-  position: relative;
-  z-index: 1;
-}
-
-.role-tab:active {
-  transform: scale(0.96);
-}
-
-.role-tab:hover:not(.active) {
-  color: #111827;
-}
-
-.role-tab.active {
-  color: #3b5bdb;
-  background: transparent;
-}
-
-/* Common slide-up fade animation for elements that re-mount when role changes */
+/* Animations */
 @keyframes slideUpFade {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;

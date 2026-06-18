@@ -22,7 +22,7 @@ import {
 import { CheckCircle2, XCircle, Clock, Award, Calendar } from 'lucide-react';
 
 export default function StudentDashboard() {
-  const { logs = [], presentCount = 0, absentCount = 0, totalClasses = 0 } = useOutletContext() || {};
+  const { logs = [], presentCount = 0, absentCount = 0, totalClasses = 0, theme } = useOutletContext() || {};
   
   // Calculate attendance metrics
   const attendanceRate = totalClasses > 0 ? Math.round((presentCount / totalClasses) * 100) : 0;
@@ -32,36 +32,46 @@ export default function StudentDashboard() {
   const complianceStatus = isSafe 
     ? `${attendanceRate}% - Attendance Safe` 
     : `${attendanceRate}% - Below Mandatory Threshold (75%)`;
-  const complianceColor = isSafe ? 'green.400' : 'red.400';
+  
+  const complianceColor = isSafe ? '#10b981' : '#ef4444'; // Green or Red
   const complianceScheme = isSafe ? 'green' : 'red';
 
   const currentUserStr = localStorage.getItem("currentUser");
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
   const fullName = currentUser ? currentUser.fullName : (localStorage.getItem("userFullName") || "Student");
 
+  // Modern UI theme variables
+  const cardBg = theme === 'dark' ? '#09090b' : '#ffffff';
+  const cardBorderColor = theme === 'dark' ? '#27272a' : '#e4e4e7';
+  const textPrimary = theme === 'dark' ? '#f4f4f5' : '#0f172a';
+  const textSecondary = theme === 'dark' ? '#a1a1aa' : '#71717a';
+  const welcomeCardBg = theme === 'dark' ? '#18181b' : '#09090b';
+
   return (
-    <Container maxW="container.md" py={8} as={VStack} spacing={6} align="stretch">
+    <Container maxW="container.md" py={6} as={VStack} spacing={6} align="stretch" px={0}>
       {/* Title Header */}
       <Box mb={2}>
-        <Heading size="lg" color="gray.850" fontWeight="bold">Student Attendance Portal</Heading>
-        <Text fontSize="md" color="gray.500">View your active biometric verification logs and compliance parameters</Text>
+        <Heading size="lg" color={textPrimary} fontWeight="700" letterSpacing="-0.02em">Student Attendance Portal</Heading>
+        <Text fontSize="md" color={textSecondary} mt={1}>View your active biometric verification logs and compliance parameters</Text>
       </Box>
 
       {/* Welcome Banner Card */}
       <Card
-        bgGradient="linear(to-r, blue.700, indigo.800)"
+        bg={welcomeCardBg}
         color="white"
         borderRadius="xl"
-        shadow="lg"
+        border="1px solid"
+        borderColor={theme === 'dark' ? '#27272a' : '#09090b'}
+        boxShadow="sm"
       >
         <CardBody p={6}>
           <Flex direction={{ base: 'column', md: 'row' }} justify="space-between" align={{ base: 'flex-start', md: 'center' }} gap={4}>
             <Box>
               <HStack spacing={3}>
-                <Heading size="md" fontWeight="bold">Welcome Back, {fullName}!</Heading>
-                <Icon as={Award} color="yellow.300" w={5} h={5} />
+                <Heading size="md" fontWeight="600" letterSpacing="-0.01em">Welcome Back, {fullName}!</Heading>
+                <Icon as={Award} color="yellow.400" w={5} h={5} />
               </HStack>
-              <Text fontSize="sm" mt={1} opacity={0.85}>
+              <Text fontSize="sm" mt={1.5} color="#d4d4d8">
                 Your SFace biometric profile is synced with the PostgreSQL vector DB.
               </Text>
             </Box>
@@ -76,22 +86,22 @@ export default function StudentDashboard() {
       </Card>
 
       {/* Quota Compliance Circular Chart Panel */}
-      <Card borderRadius="xl" shadow="md" bg="white">
+      <Card borderRadius="xl" border="1px solid" borderColor={cardBorderColor} bg={cardBg} boxShadow="sm">
         <CardBody p={6}>
           <Flex direction="column" align="center" justify="center" py={4}>
-            <Text fontSize="md" fontWeight="bold" color="gray.600" mb={4} uppercase letterSpacing="wider">
+            <Text fontSize="xs" fontWeight="700" color={textSecondary} mb={6} uppercase letterSpacing="0.08em">
               Attendance Quota Status
             </Text>
 
             {/* Circular Progress as requested */}
             <CircularProgress
               value={attendanceRate}
-              size="120px"
-              thickness="12px"
+              size="130px"
+              thickness="10px"
               color={complianceColor}
-              trackColor="gray.100"
+              trackColor={theme === 'dark' ? '#18181b' : '#f4f4f5'}
             >
-              <CircularProgressLabel fontSize="xl" fontWeight="bold" color={complianceColor}>
+              <CircularProgressLabel fontSize="lg" fontWeight="700" color={complianceColor}>
                 {attendanceRate}%
               </CircularProgressLabel>
             </CircularProgress>
@@ -111,16 +121,16 @@ export default function StudentDashboard() {
             
             <SimpleGrid columns={3} spacing={6} w="100%" mt={8} textAlign="center" as={Flex} justify="space-around">
               <Box>
-                <Text fontSize="xs" color="gray.400" fontWeight="semibold">PRESENT</Text>
-                <Text fontSize="lg" fontWeight="bold" color="green.600">{presentCount} Days</Text>
+                <Text fontSize="2xs" color={textSecondary} fontWeight="700" letterSpacing="0.05em">PRESENT</Text>
+                <Text fontSize="lg" fontWeight="700" color="#10b981" mt={1}>{presentCount} Days</Text>
               </Box>
               <Box>
-                <Text fontSize="xs" color="gray.400" fontWeight="semibold">ABSENT</Text>
-                <Text fontSize="lg" fontWeight="bold" color="red.600">{absentCount} Days</Text>
+                <Text fontSize="2xs" color={textSecondary} fontWeight="700" letterSpacing="0.05em">ABSENT</Text>
+                <Text fontSize="lg" fontWeight="700" color="#ef4444" mt={1}>{absentCount} Days</Text>
               </Box>
               <Box>
-                <Text fontSize="xs" color="gray.400" fontWeight="semibold">TOTAL SESSIONS</Text>
-                <Text fontSize="lg" fontWeight="bold" color="gray.700">{totalClasses} Classes</Text>
+                <Text fontSize="2xs" color={textSecondary} fontWeight="700" letterSpacing="0.05em">TOTAL SESSIONS</Text>
+                <Text fontSize="lg" fontWeight="700" color={textPrimary} mt={1}>{totalClasses} Classes</Text>
               </Box>
             </SimpleGrid>
           </Flex>
@@ -128,15 +138,15 @@ export default function StudentDashboard() {
       </Card>
 
       {/* Chronological Vertical Timeline Card */}
-      <Card borderRadius="xl" shadow="md" bg="white">
+      <Card borderRadius="xl" border="1px solid" borderColor={cardBorderColor} bg={cardBg} boxShadow="sm">
         <CardBody p={6}>
           <Flex align="center" mb={4}>
-            <Icon as={Clock} color="blue.500" mr={2} />
-            <Heading size="md" color="gray.700">Attendance Verification History</Heading>
+            <Icon as={Clock} color="#3b82f6" mr={2.5} w={5} h={5} />
+            <Heading size="md" fontWeight="600" color={textPrimary} letterSpacing="-0.01em">Attendance Verification History</Heading>
           </Flex>
-          <Stack spacing={4} divider={<Divider />}>
+          <Stack spacing={4} divider={<Divider borderColor={cardBorderColor} />}>
             {logs.length === 0 ? (
-              <Flex direction="column" align="center" justify="center" py={8} color="gray.400" gap={2}>
+              <Flex direction="column" align="center" justify="center" py={8} color={textSecondary} gap={2}>
                 <Icon as={Calendar} w={8} h={8} />
                 <Text fontSize="sm">No attendance check-ins logged.</Text>
               </Flex>
@@ -146,15 +156,15 @@ export default function StudentDashboard() {
                   <HStack spacing={4}>
                     <Icon
                       as={log.status === 'Present' ? CheckCircle2 : XCircle}
-                      color={log.status === 'Present' ? 'green.500' : 'red.500'}
-                      w={6}
-                      h={6}
+                      color={log.status === 'Present' ? '#10b981' : '#ef4444'}
+                      w={5}
+                      h={5}
                     />
                     <Box>
-                      <Text fontWeight="bold" fontSize="sm" color="gray.700">
+                      <Text fontWeight="600" fontSize="sm" color={textPrimary}>
                         {new Date(log.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
                       </Text>
-                      <Text fontSize="xs" color="gray.400">
+                      <Text fontSize="xs" color={textSecondary}>
                         {log.status === 'Present' ? `Verified: ${log.type || 'Webcam Face ID'}` : 'Absent'}
                       </Text>
                     </Box>
@@ -164,7 +174,7 @@ export default function StudentDashboard() {
                       {log.status}
                     </Badge>
                     {log.status === 'Present' && (
-                      <Text fontSize="3xs" color="gray.400" mt={1}>
+                      <Text fontSize="2xs" color={textSecondary} mt={1}>
                         {log.timeIn}
                       </Text>
                     )}

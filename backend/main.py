@@ -70,6 +70,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.staticfiles import StaticFiles
+(data_dir / "uploads").mkdir(parents=True, exist_ok=True)
+app.mount("/static/uploads", StaticFiles(directory=str(data_dir / "uploads")), name="uploads")
+
 # Startup DB Initialization
 @app.on_event("startup")
 def startup_event():
@@ -256,15 +260,19 @@ async def register_student(payload: StudentRegisterRequest):
         if not embedding:
             raise HTTPException(status_code=400, detail="Could not detect a clear face in the provided scan. Please try again.")
 
+        # Upload photo to Neon-friendly S3 / local fallback
+        from storage import upload_profile_photo
+        photo_url = upload_profile_photo(payload.photo, payload.rollNumber)
+
         # Insert student record with pgvector embedding
         cursor.execute("""
-            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, address, status, embedding)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector)
+            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, address, photo, status, embedding)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector)
             RETURNING id
         """, (
             payload.rollNumber, payload.fullName, payload.email, payload.contact,
             payload.department, payload.course, payload.semester, payload.gender, payload.dob,
-            payload.address, "Active", str(embedding)
+            payload.address, photo_url, "Active", str(embedding)
         ))
         
         # Get student DB ID
@@ -389,7 +397,8 @@ async def login(payload: LoginRequest):
                 "semester": student_dict.get("semester"),
                 "gender": student_dict.get("gender"),
                 "dob": student_dict.get("dob"),
-                "address": student_dict.get("address")
+                "address": student_dict.get("address"),
+                "photo": student_dict.get("photo")
             }
     elif user_dict["role"] == "teacher":
         cursor.execute('SELECT * FROM teachers WHERE email = %s', (user_dict["email"],))
@@ -862,6 +871,188 @@ async def delete_attendance(record_id: str):
     finally:
         conn.close()
     return {"success": True}
+
+# ─── Reports and Exports ─────────────────────────────────────
+@app.get("/api/reports/stats", dependencies=[Depends(require_role(["admin", "teacher"]))])
+async def get_reports_stats(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    if not start_date:
+        start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    if not end_date:
+        end_date = datetime.now().strftime("%Y-%m-%d")
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 1. Total Active Students
+    cursor.execute("SELECT COUNT(*) FROM students WHERE status = 'Active'")
+    total_students = cursor.fetchone()[0]
+    
+    # 2. Total Present/Absent logs in range
+    cursor.execute("""
+        SELECT status, COUNT(*) 
+        FROM attendance 
+        WHERE date >= %s AND date <= %s
+        GROUP BY status
+    """, (start_date, end_date))
+    logs = cursor.fetchall()
+    
+    total_present = 0
+    total_absent = 0
+    for r in logs:
+        if r["status"] == "Present":
+            total_present = r["count"]
+        elif r["status"] == "Absent":
+            total_absent = r["count"]
+            
+    # Calculate average attendance percentage in range
+    total_records = total_present + total_absent
+    avg_attendance = round((total_present / total_records * 100), 1) if total_records > 0 else 0.0
+    
+    # 3. Department Wise Stats
+    cursor.execute("SELECT DISTINCT department FROM students WHERE status = 'Active'")
+    depts = [r["department"] for r in cursor.fetchall() if r["department"]]
+    
+    dept_stats = []
+    for dept in depts:
+        cursor.execute("SELECT COUNT(*) FROM students WHERE department = %s AND status = 'Active'", (dept,))
+        dept_total = cursor.fetchone()[0]
+        
+        cursor.execute("""
+            SELECT status, COUNT(*) 
+            FROM attendance 
+            WHERE department = %s AND date >= %s AND date <= %s
+            GROUP BY status
+        """, (dept, start_date, end_date))
+        dept_logs = cursor.fetchall()
+        
+        d_present = 0
+        d_absent = 0
+        for r in dept_logs:
+            if r["status"] == "Present":
+                d_present = r["count"]
+            elif r["status"] == "Absent":
+                d_absent = r["count"]
+                
+        d_records = d_present + d_absent
+        d_pct = round((d_present / d_records * 100), 1) if d_records > 0 else 0.0
+        
+        dept_stats.append({
+            "name": dept,
+            "totalStudents": dept_total,
+            "present": d_present,
+            "absent": d_absent,
+            "percentage": d_pct
+        })
+        
+    # 4. Daily attendance trend overview for graph (last 10 active days or daily within range)
+    cursor.execute("""
+        SELECT date, 
+               SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) as present,
+               COUNT(*) as total
+        FROM attendance
+        WHERE date >= %s AND date <= %s
+        GROUP BY date
+        ORDER BY date ASC
+    """, (start_date, end_date))
+    daily_rows = cursor.fetchall()
+    
+    trend = []
+    for r in daily_rows:
+        pct = round((r["present"] / r["total"] * 100), 1) if r["total"] > 0 else 0.0
+        trend.append({
+            "date": datetime.strptime(r["date"], "%Y-%m-%d").strftime("%d %b") if r["date"] else "-",
+            "value": pct
+        })
+        
+    conn.close()
+    
+    return {
+        "totalStudents": total_students,
+        "avgAttendance": f"{avg_attendance}%",
+        "presentCount": total_present,
+        "absentCount": total_absent,
+        "departmentStats": dept_stats,
+        "attendanceOverview": trend
+    }
+
+@app.get("/api/reports/export", dependencies=[Depends(require_role(["admin", "teacher"]))])
+async def export_attendance_report(
+    department: Optional[str] = None,
+    semester: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    import csv
+    from io import StringIO
+    from fastapi.responses import StreamingResponse
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    query = """
+        SELECT s.rollNumber, s.fullName, s.department, s.semester, 
+               a.date, a.timeIn, a.timeOut, a.status, a.markedBy
+        FROM students s
+        LEFT JOIN attendance a ON s.rollNumber = a.rollNumber
+        WHERE 1=1
+    """
+    params = []
+    if department:
+        query += " AND s.department = %s"
+        params.append(department)
+    if semester:
+        query += " AND s.semester = %s"
+        params.append(semester)
+    if start_date:
+        query += " AND a.date >= %s"
+        params.append(start_date)
+    if end_date:
+        query += " AND a.date <= %s"
+        params.append(end_date)
+        
+    query += " ORDER BY a.date DESC, s.rollNumber ASC"
+    
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    # Generate CSV in-memory
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        "Roll Number", "Full Name", "Department", "Semester", 
+        "Date", "Time In", "Time Out", "Status", "Marked By"
+    ])
+    
+    # Write rows
+    for r in rows:
+        writer.writerow([
+            r["rollnumber"],
+            r["fullname"],
+            r["department"],
+            f"Semester {r['semester']}" if r["semester"] else "-",
+            r["date"] or "-",
+            r["timein"] or "-",
+            r["timeout"] or "-",
+            r["status"] or "Absent",
+            r["markedby"] or "-"
+        ])
+        
+    output.seek(0)
+    
+    filename = f"attendance_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 
 @app.get("/api/attendance/sessions", dependencies=[Depends(require_role(["admin", "teacher", "student"]))])
 async def get_active_sessions():

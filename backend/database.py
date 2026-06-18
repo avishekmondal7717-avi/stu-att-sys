@@ -2,8 +2,27 @@ import psycopg2
 from psycopg2.extras import DictCursor
 import hashlib
 import secrets
+import os
+from pathlib import Path
 
-DATABASE_URL = "postgresql://neondb_owner:npg_N4GUC0fvbPaF@ep-blue-bonus-adni75hf-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+# Load environment variables from .env if present
+def load_dotenv():
+    env_path = Path(__file__).parent / ".env"
+    if env_path.exists():
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    if "=" in line:
+                        key, val = line.split("=", 1)
+                        os.environ[key.strip()] = val.strip()
+
+load_dotenv()
+
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://neondb_owner:npg_N4GUC0fvbPaF@ep-blue-bonus-adni75hf-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+)
 
 def get_db_connection():
     conn = psycopg2.connect(DATABASE_URL)
@@ -57,6 +76,7 @@ def init_db():
         gender TEXT,
         dob TEXT,
         address TEXT,
+        photo TEXT,
         status TEXT DEFAULT 'Active',
         embedding VECTOR(128)
     )
@@ -64,6 +84,17 @@ def init_db():
     
     # Run migrations for existing DB instances
     cursor.execute("ALTER TABLE students ADD COLUMN IF NOT EXISTS address TEXT;")
+    cursor.execute("ALTER TABLE students ADD COLUMN IF NOT EXISTS photo TEXT;")
+    
+    # Create HNSW index for sub-millisecond similarity search
+    try:
+        cursor.execute("""
+        CREATE INDEX IF NOT EXISTS students_embedding_hnsw_idx 
+        ON students USING hnsw (embedding vector_l2_ops) 
+        WITH (m = 16, ef_construction = 64);
+        """)
+    except Exception as e:
+        print(f"Warning: Could not create HNSW index: {e}. If pgvector version is older, index might need manual updates.")
     
     # Create teachers table
     cursor.execute("""

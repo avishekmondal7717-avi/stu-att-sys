@@ -242,7 +242,7 @@ export default function StudentWebcam() {
     <div>
       <PageHeader title="Webcam Attendance" subtitle="Mark your attendance instantly using face recognition" breadcrumbs={[{ label: 'Webcam Attendance' }]} />
 
-      <Card title={<span style={{ color: '#1e3a8a', fontWeight: 700 }}>Classroom Scan Viewport</span>} style={{ borderRadius: 12, maxWidth: 640, margin: '0 auto' }}>
+      <Card title={<span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Classroom Scan Viewport</span>} style={{ borderRadius: 12, maxWidth: 640, margin: '0 auto' }}>
         {!cameraActive ? (
           <div className="classroom-setup">
             {activeSessions.length === 0 ? (
@@ -255,7 +255,7 @@ export default function StudentWebcam() {
               />
             ) : (
               <>
-                <p className="scanner-instruction">Select your current class schedule to initialize self face scanning:</p>
+                <p className="scanner-instruction" style={{ color: 'var(--text-secondary)', marginBottom: 12 }}>Select your current class schedule to initialize self face scanning:</p>
                 <Select
                   placeholder="Choose active classroom session"
                   size="large"
@@ -270,9 +270,9 @@ export default function StudentWebcam() {
               </>
             )}
 
-            <div className="setup-placeholder" style={{ background: '#f8fafc', height: 320, borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, border: '2px dashed #cbd5e1' }}>
-              <VideoCameraOutlined className="placeholder-cam-icon" style={{ fontSize: 48, color: '#94a3b8' }} />
-              <span style={{ color: '#64748b' }}>Webcam Inactive</span>
+            <div className="setup-placeholder" style={{ background: 'var(--bg-primary)', height: 320, borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, border: '2px dashed var(--border-color)' }}>
+              <VideoCameraOutlined className="placeholder-cam-icon" style={{ fontSize: 48, color: 'var(--text-muted)' }} />
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Webcam Inactive</span>
             </div>
 
             <Button
@@ -281,18 +281,18 @@ export default function StudentWebcam() {
               icon={<VideoCameraOutlined />}
               onClick={handleStartCamera}
               disabled={!selectedClass || activeSessions.length === 0}
-              style={{ width: '100%', height: 48, background: '#1e3a8a', fontWeight: 600, borderRadius: 8, marginTop: 16 }}
+              style={{ width: '100%', height: 48, background: 'var(--text-primary)', color: 'var(--bg-primary)', fontWeight: 600, borderRadius: 8, marginTop: 16, border: 'none' }}
             >
               Enter Classroom & Start Scan
             </Button>
           </div>
         ) : (
           <div className="webcam-scan-container">
-            <div className="scan-header-text" style={{ marginBottom: 12, fontSize: 15 }}>
+            <div className="scan-header-text" style={{ marginBottom: 12, fontSize: 15, color: 'var(--text-primary)' }}>
               Classroom Session: <strong>{selectedClass}</strong>
             </div>
 
-            <div style={{ position: 'relative', width: '100%', height: 400, background: '#1a1a2e', borderRadius: 12, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+            <div style={{ position: 'relative', width: '100%', height: 400, background: '#09090b', borderRadius: 12, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20, border: '1px solid var(--border-color)' }}>
               {/* HTML5 Video Element */}
               <video 
                 ref={videoRef}
@@ -305,7 +305,7 @@ export default function StudentWebcam() {
                 ref={canvasRef}
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10 }}
               />
-              <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(0,0,0,0.6)', padding: '6px 12px', borderRadius: 20, color: '#fff', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(9,9,11,0.85)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: 20, color: '#fff', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <ScanOutlined style={{ color: '#10b981' }} />
                 Scanning for biometric presence...
               </div>

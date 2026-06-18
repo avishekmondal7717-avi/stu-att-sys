@@ -1,10 +1,14 @@
-import { Menu, Bell, ChevronDown } from 'lucide-react';
+import { Menu, Bell, ChevronDown, Sun, Moon } from 'lucide-react';
 import './Topbar.css';
 
-export default function Topbar({ onToggleSidebar }) {
+export default function Topbar({ onToggleSidebar, theme, setTheme }) {
   const userFullName = localStorage.getItem("userFullName") || "User";
   const userRole = localStorage.getItem("userRole") || "Role";
   const initial = userFullName.charAt(0).toUpperCase();
+
+  const currentUserStr = localStorage.getItem("currentUser");
+  const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+  const userPhoto = currentUser ? currentUser.photo : null;
 
   return (
     <header className="topbar">
@@ -13,6 +17,10 @@ export default function Topbar({ onToggleSidebar }) {
       </button>
 
       <div className="topbar-right">
+        <button className="theme-toggle-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle Light/Dark Theme">
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+
         <button className="notif-btn">
           <Bell size={20} />
           <span className="notif-badge">3</span>
@@ -25,15 +33,20 @@ export default function Topbar({ onToggleSidebar }) {
               width: 36, height: 36, borderRadius: '50%',
               backgroundColor: '#1e40af', color: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 700, fontSize: 15
+              fontWeight: 700, fontSize: 15,
+              overflow: 'hidden'
             }}
           >
-            {initial}
+            {userPhoto ? (
+              <img src={userPhoto} alt={userFullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              initial
+            )}
           </div>
           <span className="admin-name">
             {userFullName} ({userRole})
           </span>
-          <ChevronDown size={16} color="#555" />
+          <ChevronDown size={16} />
         </div>
       </div>
     </header>

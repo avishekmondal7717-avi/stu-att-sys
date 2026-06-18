@@ -1,7 +1,7 @@
 .topbar {
   height: 64px;
-  background: #fff;
-  border-bottom: 1px solid #e8eaf0;
+  background: var(--bg-topbar, #fff);
+  border-bottom: 1px solid var(--border-color, #e8eaf0);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -9,52 +9,55 @@
   position: sticky;
   top: 0;
   z-index: 50;
+  transition: background-color 0.2s, border-color 0.2s;
 }
 
 .topbar-menu-btn {
   background: none;
   border: none;
   cursor: pointer;
-  color: #444;
+  color: var(--text-primary, #444);
   display: flex;
   align-items: center;
   padding: 6px;
   border-radius: 8px;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .topbar-menu-btn:hover {
-  background: #f0f2f8;
+  background: var(--bg-hover, #f0f2f8);
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 
-.notif-btn {
+.notif-btn, .theme-toggle-btn {
   position: relative;
   background: none;
   border: none;
   cursor: pointer;
-  color: #555;
+  color: var(--text-secondary, #555);
   display: flex;
   align-items: center;
-  padding: 6px;
+  justify-content: center;
+  padding: 8px;
   border-radius: 8px;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
-.notif-btn:hover {
-  background: #f0f2f8;
+.notif-btn:hover, .theme-toggle-btn:hover {
+  background: var(--bg-hover, #f0f2f8);
+  color: var(--text-primary, #000);
 }
 
 .notif-badge {
   position: absolute;
-  top: 0;
-  right: 0;
-  background: #e53e3e;
+  top: 2px;
+  right: 2px;
+  background: #ef4444;
   color: #fff;
   font-size: 10px;
   font-weight: 700;
@@ -71,24 +74,38 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
   transition: background 0.15s;
+  color: var(--text-primary, #2d3748);
 }
 
 .admin-profile:hover {
-  background: #f0f2f8;
+  background: var(--bg-hover, #f0f2f8);
 }
 
 .admin-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
 }
 
 .admin-name {
   font-size: 14px;
-  font-weight: 600;
-  color: #2d3748;
+  font-weight: 500;
+  color: var(--text-primary, #2d3748);
+}
+
+/* Dark theme overrides for topbar icons and profile arrow */
+.dark .admin-profile {
+  color: var(--text-primary);
+}
+.dark .admin-profile svg {
+  stroke: var(--text-primary);
+}
+.dark .topbar-menu-btn svg,
+.dark .notif-btn svg,
+.dark .theme-toggle-btn svg {
+  stroke: var(--text-primary);
 }

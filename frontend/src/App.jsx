@@ -43,13 +43,24 @@ const initialStudentLogs = [
 
 function TeacherLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
   return (
-    <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-      <Sidebar />
+    <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${theme}`}>
+      <Sidebar theme={theme} />
       <div className="main-area">
-        <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} />
+        <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} theme={theme} setTheme={setTheme} />
         <main className="page-content">
-          <Outlet />
+          <Outlet context={{ theme, setTheme }} />
         </main>
       </div>
     </div>
@@ -58,12 +69,22 @@ function TeacherLayout() {
 
 function StudentLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   
   // Shared state for student attendance
   const [logs, setLogs] = useState([]);
   const [presentCount, setPresentCount] = useState(0);
   const [absentCount, setAbsentCount] = useState(0);
   const [totalClasses, setTotalClasses] = useState(0);
+
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
   const fetchStudentData = async () => {
     try {
@@ -86,12 +107,12 @@ function StudentLayout() {
   }, []);
 
   return (
-    <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-      <StudentSidebar />
+    <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${theme}`}>
+      <StudentSidebar theme={theme} />
       <div className="main-area">
-        <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} />
+        <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} theme={theme} setTheme={setTheme} />
         <main className="page-content">
-          <Outlet context={{ logs, setLogs, presentCount, setPresentCount, absentCount, totalClasses, setTotalClasses, fetchStudentData }} />
+          <Outlet context={{ logs, setLogs, presentCount, setPresentCount, absentCount, totalClasses, setTotalClasses, fetchStudentData, theme, setTheme }} />
         </main>
       </div>
     </div>
@@ -100,13 +121,24 @@ function StudentLayout() {
 
 function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
   return (
-    <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-      <AdminSidebar />
+    <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${theme}`}>
+      <AdminSidebar theme={theme} />
       <div className="main-area">
-        <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} />
+        <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} theme={theme} setTheme={setTheme} />
         <main className="page-content">
-          <Outlet />
+          <Outlet context={{ theme, setTheme }} />
         </main>
       </div>
     </div>

@@ -177,9 +177,15 @@ export const attendanceAPI = {
 
 // ── Reports API ───────────────────────────────────────────────
 export const reportsAPI = {
-  getSummary: async () => {
-    return request('/reports/summary');
+  getStats: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/reports/stats${query ? '?' + query : ''}`);
   },
+  getExportUrl: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const token = localStorage.getItem("token");
+    return `/api/reports/export?token=${token}&${query}`;
+  }
 };
 
 // ── Dashboard API ─────────────────────────────────────────────

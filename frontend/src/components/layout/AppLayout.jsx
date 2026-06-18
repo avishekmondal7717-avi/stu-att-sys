@@ -15,6 +15,11 @@ const AppLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const currentUserStr = localStorage.getItem("currentUser");
+  const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+  const userFullName = currentUser ? currentUser.fullName : (localStorage.getItem("userFullName") || "User");
+  const userPhoto = currentUser ? currentUser.photo : null;
+
   const menuItems = [
     { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
     {
@@ -96,7 +101,7 @@ const AppLayout = ({ children }) => {
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '16px', textAlign: 'center' }}>
             <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px', color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>
               <div style={{ fontSize: 24, marginBottom: 4 }}>👨‍💻</div>
-              <div style={{ fontWeight: 600, color: '#fff' }}>Welcome, Admin</div>
+              <div style={{ fontWeight: 600, color: '#fff' }}>Welcome, {userFullName}</div>
               <div style={{ fontSize: 11 }}>Have a nice day!</div>
             </div>
           </div>
@@ -118,8 +123,10 @@ const AppLayout = ({ children }) => {
             </Badge>
             <Dropdown menu={userMenu} placement="bottomRight">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <Avatar size={32} style={{ backgroundColor: '#1e40af', fontWeight: 700 }}>A</Avatar>
-                <span style={{ fontWeight: 600, fontSize: 14 }}>Admin</span>
+                <Avatar size={32} src={userPhoto} style={{ backgroundColor: '#1e40af', fontWeight: 700 }}>
+                  {!userPhoto && (userFullName ? userFullName[0].toUpperCase() : 'U')}
+                </Avatar>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{userFullName}</span>
                 <span style={{ fontSize: 10, color: '#999' }}>▼</span>
               </div>
             </Dropdown>
