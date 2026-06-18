@@ -40,6 +40,9 @@ def init_db():
     # We do NOT quote column names so PostgreSQL defaults to lowercase.
     # Our row_to_dict function in main.py will map them back to camelCase.
     
+    # Enable pgvector
+    cursor.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+
     # Create students table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS students (
@@ -54,7 +57,7 @@ def init_db():
         gender TEXT,
         dob TEXT,
         status TEXT DEFAULT 'Active',
-        photo TEXT
+        embedding VECTOR(128)
     )
     """)
     

@@ -8,7 +8,56 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 from database import init_db, get_db_connection, hash_password, verify_password
-from face_service import face_service
+import cv2
+import numpy as np
+import base64
+from pathlib import Path
+
+# Load OpenCV DNN Models once
+data_dir = Path(__file__).parent / "data"
+detector = cv2.FaceDetectorYN_create(
+    str(data_dir / 'face_detection_yunet_2023mar.onnx'), 
+    "", (320, 320), 0.9, 0.3, 5000
+)
+recognizer = cv2.FaceRecognizerSF_create(
+    str(data_dir / 'face_recognition_sface_2021dec.onnx'), 
+    ""
+)
+
+def decode_base64_image(b64_string: str) -> np.ndarray:
+    if "," in b64_string:
+        b64_string = b64_string.split(",")[1]
+    img_bytes = base64.b64decode(b64_string)
+    nparr = np.frombuffer(img_bytes, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+def extract_face_embedding(frame: np.ndarray):
+    h, w, _ = frame.shape
+    detector.setInputSize((w, h))
+    _, faces = detector.detect(frame)
+    if faces is not None and len(faces) > 0:
+        face = faces[0]
+        box = face[0:4].astype(np.int32)
+        landmarks = face[4:14].astype(np.int32)
+        x, y, width, height = box
+        x1, y1 = max(0, x), max(0, y)
+        x2, y2 = min(w, x + width), min(h, y + height)
+        face_crop = frame[y1:y2, x1:x2]
+        
+        is_live = False
+        if face_crop.size > 0:
+            gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
+            laplacian_var = cv2.Laplacian(gray_crop, cv2.CV_64F).var()
+            r_eye_x, l_eye_x, nose_x = landmarks[0], landmarks[2], landmarks[4]
+            dist_r = abs(nose_x - r_eye_x)
+            dist_l = abs(nose_x - l_eye_x)
+            yaw_ratio = dist_r / max(dist_l, 0.001)
+            is_live = laplacian_var > 12.0 and (0.2 < yaw_ratio < 5.0)
+
+        aligned_face = recognizer.alignCrop(frame, face)
+        feature = recognizer.feature(aligned_face)
+        return feature.flatten().tolist(), box.tolist(), is_live
+    return None, None, False
 
 app = FastAPI(title="Smart Attendance System API")
 
@@ -196,26 +245,30 @@ async def register_student(payload: StudentRegisterRequest):
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="User email already registered")
 
-        # Insert student record
+        if not payload.photo:
+            raise HTTPException(status_code=400, detail="Profile photo (face scan) is mandatory for registration.")
+            
+        frame = decode_base64_image(payload.photo)
+        if frame is None:
+            raise HTTPException(status_code=400, detail="Invalid photo data.")
+            
+        embedding, _, _ = extract_face_embedding(frame)
+        if not embedding:
+            raise HTTPException(status_code=400, detail="Could not detect a clear face in the provided scan. Please try again.")
+
+        # Insert student record with pgvector embedding
         cursor.execute("""
-            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, status, photo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, status, embedding)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector)
             RETURNING id
         """, (
             payload.rollNumber, payload.fullName, payload.email, payload.contact,
             payload.department, payload.course, payload.semester, payload.gender, payload.dob,
-            "Active", payload.photo if payload.photo else f"https://i.pravatar.cc/40?img={hash(payload.rollNumber) % 70}"
+            "Active", str(embedding)
         ))
         
         # Get student DB ID
         student_db_id = cursor.fetchone()[0]
-        
-        # Automatically enroll student's face if photo is uploaded during registration
-        if payload.photo:
-            try:
-                face_service.enroll_student_faces(payload.rollNumber, [payload.photo])
-            except Exception as e:
-                print(f"Error enrolling face during registration: {e}")
         
         # Insert user login account
         hashed = hash_password(payload.password)
@@ -232,8 +285,12 @@ async def register_student(payload: StudentRegisterRequest):
     except psycopg2.IntegrityError:
         conn.close()
         raise HTTPException(status_code=400, detail="Database integrity error. Student ID or email might be duplicated.")
+    except HTTPException:
+        conn.close()
+        raise
     except Exception as e:
         conn.close()
+        print(f"Exception in register_student: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/auth/register/teacher")
@@ -438,13 +495,13 @@ async def create_student(student: StudentCreate):
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, status, photo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             student.rollNumber, student.fullName, student.email, student.contact,
             student.department, student.course, student.semester, student.gender, student.dob,
-            student.status, student.photo if student.photo else f"https://i.pravatar.cc/40?img={hash(student.rollNumber) % 70}"
+            student.status
         ))
         
         # Get student DB ID
@@ -481,12 +538,12 @@ async def update_student(student_id: int, student: StudentCreate):
     
     cursor.execute("""
         UPDATE students
-        SET rollNumber=%s, fullName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, status=%s, photo=%s
+        SET rollNumber=%s, fullName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, status=%s
         WHERE id=%s
     """, (
         student.rollNumber, student.fullName, student.email, student.contact,
         student.department, student.course, student.semester, student.gender, student.dob,
-        student.status, student.photo if student.photo else f"https://i.pravatar.cc/40?img={hash(student.rollNumber) % 70}", student_id
+        student.status, student_id
     ))
     
     # Also update user login profile
@@ -834,74 +891,78 @@ async def scan_attendance(request: ScanRequest, current_user: Optional[dict] = D
     cursor = conn.cursor()
     
     if request.classCode:
-        # Check if the attendance window is active
         cursor.execute("SELECT isactive FROM active_sessions WHERE classcode = %s", (request.classCode,))
         row = cursor.fetchone()
         if not row or not row["isactive"]:
             conn.close()
             raise HTTPException(status_code=400, detail="Attendance window is closed for this class.")
 
-    faces = face_service.scan_frame(request.image)
+    frame = decode_base64_image(request.image)
+    if frame is None:
+        conn.close()
+        return {"faces": []}
+
+    embedding, box, is_live = extract_face_embedding(frame)
     today_str = datetime.now().strftime("%Y-%m-%d")
     time_str = datetime.now().strftime("%I:%M:%S %p")
     
     updated_faces = []
     
-    for face in faces:
-        name = face["name"]
-        is_live = face["is_live"]
-        face["identity_verified"] = True
+    if embedding:
+        cursor.execute("""
+            SELECT rollnumber, fullname, department, (embedding <=> %s::vector) AS distance 
+            FROM students 
+            WHERE embedding IS NOT NULL 
+            ORDER BY distance ASC LIMIT 1;
+        """, (str(embedding),))
+        match = cursor.fetchone()
         
-        # If model recognized a face and spoofing check passed
-        if name != "Unknown" and is_live:
-            # Query db for the student matching either Roll Number or Full Name
-            cursor.execute("SELECT rollNumber, fullName, department FROM students WHERE rollNumber = %s OR fullName = %s", (name, name))
-            student = cursor.fetchone()
+        face_info = {
+            "box": box,
+            "name": "Unknown",
+            "is_live": is_live,
+            "identity_verified": True,
+            "marked": False,
+            "distance": 1.0
+        }
+
+        if match and match["distance"] < 0.40:
+            roll = match["rollnumber"]
+            friendly_name = match["fullname"]
+            dept = match["department"]
             
-            if student:
-                roll = student["rollNumber"]
-                friendly_name = student["fullName"]
-                dept = student["department"]
-                
-                # Update visual label shown to frontend to friendly full name
-                face["name"] = friendly_name
-                
-                # Enforce identity check for student role
+            face_info["name"] = friendly_name
+            face_info["distance"] = match["distance"]
+
+            if is_live:
                 if current_user and current_user.get("role") == "student":
                     expected_roll = current_user.get("referenceId")
                     expected_name = current_user.get("fullName")
                     if roll != expected_roll and friendly_name != expected_name:
-                        print(f"Identity mismatch in scan: logged in as {expected_name} ({expected_roll}), but face is {friendly_name} ({roll})")
-                        face["identity_verified"] = False
-                        face["is_live"] = False
-                        face["marked"] = False
-                        face["name"] = f"Mismatch: {friendly_name}"
-                        updated_faces.append(face)
-                        continue
+                        print(f"Identity mismatch in scan: expected {expected_roll}, got {roll}")
+                        face_info["identity_verified"] = False
+                        face_info["is_live"] = False
+                        face_info["name"] = f"Mismatch: {friendly_name}"
+                        updated_faces.append(face_info)
+                        conn.close()
+                        return {"faces": updated_faces}
                 
-                # Check if already logged today for this specific class code
                 marked_by_str = f"Webcam ({request.classCode})" if request.classCode else "Webcam"
-                
                 cursor.execute("""
                     SELECT COUNT(*) FROM attendance 
                     WHERE rollNumber = %s AND date = %s AND markedBy = %s AND status = 'Present'
                 """, (roll, today_str, marked_by_str))
-                already_marked = cursor.fetchone()[0] > 0
                 
-                if not already_marked:
-                    # Write presence to database
+                if cursor.fetchone()[0] == 0:
                     cursor.execute("""
                         INSERT INTO attendance (rollNumber, studentName, department, date, timeIn, timeOut, status, markedBy)
                         VALUES (%s, %s, %s, %s, %s, 'Pending', 'Present', %s)
                         ON CONFLICT(rollNumber, date) DO UPDATE SET status='Present', timeIn=%s, markedBy=%s
                     """, (roll, friendly_name, dept, today_str, time_str, marked_by_str, time_str, marked_by_str))
                     conn.commit()
-                    print(f"Logged live face attendance for {friendly_name} ({roll}) in class {marked_by_str}")
-                    face["marked"] = True
-                else:
-                    face["marked"] = False
-                    
-        updated_faces.append(face)
+                    face_info["marked"] = True
+                
+        updated_faces.append(face_info)
         
     conn.close()
     return {"faces": updated_faces}
