@@ -1,3 +1,4 @@
+import { App as AntdApp } from 'antd';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { attendanceAPI } from './services/api';
@@ -215,54 +216,56 @@ function HomeRedirect() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomeRedirect />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/teacher/register" element={<TeacherRegister />} />
-        <Route path="/admin-login" element={<AdminLogin />} />
-        
-        {/* Student Routes */}
-        <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
-          <Route element={<StudentLayout />}>
-            <Route path="/student/dashboard" element={<StudentDashboard />} />
-            <Route path="/student/webcam" element={<StudentWebcam />} />
-            <Route path="/student/logs" element={<StudentLogs />} />
-            <Route path="/student/profile" element={<StudentProfile />} />
+    <AntdApp>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<HomeRedirect />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/teacher/register" element={<TeacherRegister />} />
+          <Route path="/admin-login" element={<AdminLogin />} />
+          
+          {/* Student Routes */}
+          <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
+            <Route element={<StudentLayout />}>
+              <Route path="/student/dashboard" element={<StudentDashboard />} />
+              <Route path="/student/webcam" element={<StudentWebcam />} />
+              <Route path="/student/logs" element={<StudentLogs />} />
+              <Route path="/student/profile" element={<StudentProfile />} />
+            </Route>
           </Route>
-        </Route>
 
-        {/* Teacher Routes */}
-        <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
-          <Route element={<TeacherLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/students" element={<StudentList />} />
-            <Route path="/students/list" element={<StudentList />} />
-            <Route path="/add-student" element={<AddStudent />} />
-            <Route path="/students/add" element={<AddStudent />} />
-            <Route path="/students/edit/:id" element={<AddStudent />} />
-            <Route path="/attendance" element={<AttendanceTable />} />
-            <Route path="/attendance/table" element={<AttendanceTable />} />
-            <Route path="/attendance/mark" element={<MarkAttendance />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/webcam" element={<Webcam />} />
-            <Route path="/settings" element={<Settings />} />
+          {/* Teacher Routes */}
+          <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
+            <Route element={<TeacherLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/students" element={<StudentList />} />
+              <Route path="/students/list" element={<StudentList />} />
+              <Route path="/add-student" element={<AddStudent />} />
+              <Route path="/students/add" element={<AddStudent />} />
+              <Route path="/students/edit/:id" element={<AddStudent />} />
+              <Route path="/attendance" element={<AttendanceTable />} />
+              <Route path="/attendance/table" element={<AttendanceTable />} />
+              <Route path="/attendance/mark" element={<MarkAttendance />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/webcam" element={<Webcam />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
           </Route>
-        </Route>
 
-        {/* Admin Routes */}
-        <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-          <Route element={<AdminLayout />}>
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/students" element={<AdminManageStudents />} />
-            <Route path="/admin/teachers" element={<AdminManageTeachers />} />
-            <Route path="/admin/analytics" element={<AdminAnalytics />} />
-            <Route path="/admin/settings" element={<AdminSettings />} />
+          {/* Admin Routes */}
+          <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/students" element={<AdminManageStudents />} />
+              <Route path="/admin/teachers" element={<AdminManageTeachers />} />
+              <Route path="/admin/analytics" element={<AdminAnalytics />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
+            </Route>
           </Route>
-        </Route>
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </AntdApp>
   );
 }

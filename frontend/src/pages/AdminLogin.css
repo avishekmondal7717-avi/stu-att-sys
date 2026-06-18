@@ -1,6 +1,8 @@
 /* ==========================================================================
-   MINIMALIST SAAS DESIGN SYSTEM - ADMIN LOGIN PAGE
+   PREMIUM GLASSMORPHISM DESIGN SYSTEM - ADMIN LOGIN PAGE
    ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 * {
   margin: 0;
@@ -8,45 +10,90 @@
   box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background-color: #f9fafb;
-  color: #0f172a;
-}
-
-/* Page Wrapper */
+/* Page Wrapper with animated gradient mesh background */
 .admin-wrapper {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   align-items: center;
   justify-content: center;
   padding: 24px;
+  position: relative;
+  background: #0b0f19;
+  overflow: hidden;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* Hide legacy split-panel left brand section completely */
-.admin-left {
-  display: none !important;
+/* Glowing mesh nodes */
+.admin-wrapper::before {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0) 70%);
+  top: -150px;
+  left: -100px;
+  z-index: 0;
+  animation: floatNodeAdmin 10s ease-in-out infinite alternate;
 }
 
-/* Right Panel becomes the main centered container */
+.admin-wrapper::after {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.2) 0%, rgba(79, 70, 229, 0) 70%);
+  bottom: -100px;
+  right: -50px;
+  z-index: 0;
+  animation: floatNodeAdmin2 12s ease-in-out infinite alternate;
+}
+
+@keyframes floatNodeAdmin {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(60px, 40px) scale(1.1); }
+}
+
+@keyframes floatNodeAdmin2 {
+  0% { transform: translate(0, 0) scale(1.1); }
+  100% { transform: translate(-50px, -60px) scale(0.9); }
+}
+
 .admin-right {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
-/* Minimalist Card */
+/* Premium Glassmorphism Card */
 .admin-card {
-  background: #ffffff;
-  border: 1px solid #e4e4e7;
-  border-radius: 12px;
-  padding: 40px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 48px 40px;
   width: 100%;
-  max-width: 420px;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  max-width: 440px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
+  animation: cardEntranceAdmin 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #f3f4f6;
+}
+
+@keyframes cardEntranceAdmin {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Avatar/Icon container inside the card */
@@ -56,76 +103,82 @@ body {
   margin-bottom: 20px;
 }
 
+.admin-login-avatar svg {
+  stroke: #f87171;
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.5));
+}
+
 .admin-card h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #09090b;
+  font-size: 1.75rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff 30%, #fca5a5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   text-align: center;
   margin-bottom: 8px;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 .admin-subtitle {
   font-size: 0.875rem;
-  color: #71717a;
+  color: #9ca3af;
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
+  font-weight: 400;
 }
 
 /* Form Fields */
 .admin-field {
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 
 .admin-field label {
   display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #27272a;
-  margin-bottom: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-/* Inputs */
+/* Custom Styled Input wrappers */
 .admin-input-wrap {
   display: flex;
   align-items: center;
-  gap: 8px;
-  border: 1px solid #e4e4e7;
-  border-radius: 8px;
-  padding: 0 12px;
-  background: #ffffff;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.2s ease;
 }
 
 .admin-input-wrap:focus-within {
-  border-color: #09090b;
-  box-shadow: 0 0 0 2px rgba(9, 9, 11, 0.05);
+  border-color: #f87171;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15),
+              0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .admin-input-wrap.admin-input-error {
   border-color: #ef4444;
-}
-
-.admin-input-icon {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  color: #a1a1aa;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
 }
 
 .admin-input-wrap input {
   flex: 1;
   min-width: 0;
-  padding: 10px 0;
+  padding: 12px 0;
   border: none;
   outline: none;
-  font-size: 0.875rem;
-  color: #09090b;
+  font-size: 0.9rem;
+  color: #ffffff;
   background: transparent;
 }
 
 .admin-input-wrap input::placeholder {
-  color: #a1a1aa;
+  color: #6b7280;
 }
 
 .admin-eye-btn {
@@ -134,20 +187,21 @@ body {
   cursor: pointer;
   display: flex;
   align-items: center;
-  padding: 0;
+  padding: 4px;
   flex-shrink: 0;
-  color: #71717a;
+  color: #9ca3af;
   transition: color 0.15s;
 }
 
 .admin-eye-btn:hover {
-  color: #09090b;
+  color: #ffffff;
 }
 
 .admin-error-msg {
   color: #ef4444;
   font-size: 0.75rem;
-  margin-top: 4px;
+  margin-top: 6px;
+  font-weight: 500;
 }
 
 /* Options */
@@ -155,7 +209,7 @@ body {
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .admin-remember {
@@ -163,30 +217,32 @@ body {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  font-size: 0.875rem;
-  color: #71717a;
+  color: #9ca3af;
   user-select: none;
+  font-size: 0.85rem;
 }
 
 .admin-remember input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  accent-color: #09090b;
+  width: 15px;
+  height: 15px;
+  accent-color: #f87171;
   cursor: pointer;
+  border-radius: 4px;
 }
 
 /* Sign In Button */
 .admin-btn-signin {
   width: 100%;
-  padding: 10px 16px;
-  background: #09090b;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: #ffffff;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  font-weight: 600;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  transition: all 0.2s ease;
   letter-spacing: -0.01em;
   display: flex;
   align-items: center;
@@ -195,23 +251,38 @@ body {
 }
 
 .admin-btn-signin:hover {
-  background: #27272a;
+  background: linear-gradient(135deg, #f87171 0%, #e11d48 100%);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.45);
+  transform: translateY(-1px);
+}
+
+.admin-btn-signin:active {
+  transform: translateY(0);
 }
 
 /* Back Link */
 .admin-back-link {
   text-align: center;
-  font-size: 0.875rem;
-  color: #71717a;
-  margin-top: 20px;
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin-top: 24px;
 }
 
 .admin-back-link a {
-  color: #09090b;
+  color: #f87171;
   font-weight: 600;
   text-decoration: none;
+  transition: color 0.15s;
 }
 
 .admin-back-link a:hover {
+  color: #fca5a5;
   text-decoration: underline;
+}
+
+/* Responsive details */
+@media (max-width: 480px) {
+  .admin-card {
+    padding: 36px 24px;
+  }
 }

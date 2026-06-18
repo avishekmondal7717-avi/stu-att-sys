@@ -1,211 +1,309 @@
-/* Register.css - Matches Smart Attendance System design */
+/* ==========================================================================
+   PREMIUM GLASSMORPHISM DESIGN SYSTEM - REGISTRATION PAGE
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 .register-container {
   display: flex;
-  min-height: 100vh;
-  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  height: 100vh;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0b0f19;
+  color: #f3f4f6;
+  position: relative;
+  overflow: hidden;
 }
 
-/* ── Left Panel ── */
+/* Background glowing node for right side */
+.register-container::before {
+  content: '';
+  position: absolute;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%);
+  bottom: -200px;
+  right: -100px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── Left Panel (Brand Panel) ── */
 .register-left {
-  width: 42%;
-  background: linear-gradient(160deg, #0f1b3d 0%, #1a2b5e 60%, #0d1a3a 100%);
+  width: 40%;
+  background: linear-gradient(145deg, #0d1224 0%, #151c38 50%, #0d1224 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
-  padding: 48px 44px;
+  padding: 60px 48px;
   color: white;
   position: relative;
   overflow: hidden;
+  z-index: 1;
 }
 
 .register-left::before {
   content: '';
   position: absolute;
-  width: 320px;
-  height: 320px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 50%;
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0) 75%);
   top: -80px;
   right: -80px;
-}
-
-.register-left::after {
-  content: '';
-  position: absolute;
-  width: 200px;
-  height: 200px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 50%;
-  bottom: 60px;
-  left: -60px;
+  pointer-events: none;
 }
 
 .register-brand {
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 52px;
-  position: relative;
-  z-index: 1;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 64px;
 }
 
 .register-brand-icon {
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.register-brand-icon svg {
+  width: 24px;
+  height: 24px;
+  filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.6));
 }
 
 .register-brand-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0 0 4px 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 0 0 2px 0;
   line-height: 1.2;
-  color: white;
+  background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .register-brand-accent {
-  color: #60a5fa;
+  color: #6366f1;
 }
 
 .register-brand-sub {
-  font-size: 0.78rem;
-  color: rgba(255,255,255,0.72);
+  font-size: 0.8rem;
+  color: #9ca3af;
   margin: 0;
-  line-height: 1.4;
 }
 
+/* Left Side Features */
 .register-features {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 36px;
   flex: 1;
-  position: relative;
-  z-index: 1;
 }
 
 .register-feature-item {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 20px;
+  animation: slideUpIn 0.5s ease-out both;
+}
+
+.register-feature-item:nth-child(1) { animation-delay: 0.1s; }
+.register-feature-item:nth-child(2) { animation-delay: 0.2s; }
+.register-feature-item:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes slideUpIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .register-feature-icon {
-  width: 40px;
-  height: 40px;
-  background: rgba(255,255,255,0.15);
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: #818cf8;
 }
 
 .register-feature-icon svg {
-  width: 20px;
-  height: 20px;
-  color: white;
-  fill: white;
+  width: 22px;
+  height: 22px;
 }
 
 .register-feature-item h3 {
-  margin: 0 0 4px 0;
-  font-size: 0.95rem;
-  font-weight: 600;
+  margin: 0 0 6px 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 .register-feature-item p {
   margin: 0;
-  font-size: 0.8rem;
-  color: rgba(255,255,255,0.72);
-  line-height: 1.4;
+  font-size: 0.85rem;
+  color: #9ca3af;
+  line-height: 1.5;
 }
 
 .register-copyright {
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.5);
+  font-size: 0.75rem;
+  color: #6b7280;
   margin: 0;
+}
+
+/* ── Right Panel (Form Panel) ── */
+.register-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 36px;
+  overflow-y: auto;
   position: relative;
   z-index: 1;
 }
 
-/* ── Right Panel ── */
-.register-right {
-  flex: 1;
-  background: #f5f7fa;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 32px 24px;
-  overflow-y: auto;
+/* Premium Form Card */
+.register-form-card {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 44px 40px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: cardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.register-form-card {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-  padding: 36px 36px 32px;
-  width: 100%;
-  max-width: 640px;
+/* Ant Steps Styling Override */
+.ant-steps .ant-steps-item-title {
+  color: #9ca3af !important;
+  font-weight: 600 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+
+.ant-steps .ant-steps-item-active .ant-steps-item-title {
+  color: #ffffff !important;
+}
+
+.ant-steps .ant-steps-item-finish .ant-steps-item-title {
+  color: #818cf8 !important;
+}
+
+.ant-steps .ant-steps-item-icon {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.ant-steps .ant-steps-item-icon .ant-steps-icon {
+  color: #9ca3af !important;
+}
+
+.ant-steps .ant-steps-item-active .ant-steps-item-icon {
+  background-color: #6366f1 !important;
+  border-color: #6366f1 !important;
+}
+
+.ant-steps .ant-steps-item-active .ant-steps-item-icon .ant-steps-icon {
+  color: #ffffff !important;
+}
+
+.ant-steps .ant-steps-item-finish .ant-steps-item-icon {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+  border-color: #6366f1 !important;
+}
+
+.ant-steps .ant-steps-item-finish .ant-steps-item-icon .ant-steps-icon {
+  color: #818cf8 !important;
+}
+
+.ant-steps .ant-steps-item-finish > .ant-steps-item-container > .ant-steps-item-tail::after {
+  background-color: #6366f1 !important;
 }
 
 /* ── Form Header ── */
 .register-form-header {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 }
 
 .register-avatar-upload {
   position: relative;
-  width: 88px;
-  height: 88px;
+  width: 96px;
+  height: 96px;
   margin: 0 auto 16px;
   cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.register-avatar-upload:hover {
+  transform: scale(1.03);
 }
 
 .register-avatar-placeholder {
-  width: 88px;
-  height: 88px;
-  background: #e8ecff;
+  width: 96px;
+  height: 96px;
+  background: rgba(99, 102, 241, 0.05);
   border-radius: 50%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border: 2px dashed #3b5bdb;
-  color: #3b5bdb;
+  border: 2px dashed rgba(99, 102, 241, 0.4);
+  color: #818cf8;
 }
 
 .register-avatar-placeholder svg {
-  fill: #3b5bdb;
+  fill: #818cf8;
 }
 
 .register-avatar-placeholder span {
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   font-weight: 600;
-  color: #3b5bdb;
+  color: #818cf8;
 }
 
 .register-avatar-preview {
-  width: 88px;
-  height: 88px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid #3b5bdb;
+  border: 3px solid #6366f1;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
 }
 
 .register-camera-badge {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  width: 24px;
-  height: 24px;
-  background: #3b5bdb;
+  width: 26px;
+  height: 26px;
+  background: #6366f1;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid white;
+  border: 2.5px solid #0b0f19;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .register-camera-badge svg {
@@ -213,78 +311,112 @@
 }
 
 .register-form-header h2 {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #1a1a2e;
-  margin: 0 0 4px;
+  font-size: 1.6rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 6px;
 }
 
 .register-form-header p {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: #9ca3af;
   margin: 0;
 }
 
-/* ── Form Fields ── */
+/* ── Form Structure ── */
 .register-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .register-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 16px;
 }
 
 .register-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .register-field label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #374151;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
+/* Wrap inputs with icons */
 .register-input-wrap {
   position: relative;
   display: flex;
   align-items: center;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
-  background: white;
-  transition: border-color 0.2s;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.2s ease;
 }
 
 .register-input-wrap:focus-within {
-  border-color: #3b5bdb;
-  box-shadow: 0 0 0 3px rgba(59,91,219,0.1);
+  border-color: #6366f1;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
 .register-input-wrap > svg:first-child {
   position: absolute;
-  left: 12px;
-  width: 16px;
-  height: 16px;
-  fill: #9ca3af;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  fill: #6b7280;
   flex-shrink: 0;
   pointer-events: none;
 }
 
+/* Standard raw inputs inside wrap */
 .register-input-wrap input,
 .register-input-wrap select {
   width: 100%;
-  padding: 9px 36px 9px 36px;
+  padding: 12px 14px 12px 42px;
   border: none;
   outline: none;
-  font-size: 0.82rem;
-  color: #1a1a2e;
+  font-size: 0.875rem;
+  color: #ffffff;
   background: transparent;
-  border-radius: 8px;
+  border-radius: 10px;
+}
+
+/* If input doesn't have an icon inside the wrap, or standard input */
+.register-field > input,
+.register-field > select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  outline: none;
+  font-size: 0.875rem;
+  color: #ffffff;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.register-field > input:focus,
+.register-field > select:focus {
+  border-color: #6366f1;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.register-field > input.input-error,
+.register-field > select.input-error {
+  border-color: #f87171;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15);
 }
 
 .register-input-wrap select {
@@ -293,129 +425,142 @@
   -webkit-appearance: none;
 }
 
-.register-input-wrap input::placeholder {
-  color: #9ca3af;
+/* Dropdown selections */
+.register-input-wrap select option,
+.register-field select option {
+  background-color: #0d1224;
+  color: #ffffff;
+  padding: 10px;
 }
 
-.register-input-wrap input[type="date"] {
-  color: #1a1a2e;
+.register-input-wrap input::placeholder,
+.register-field input::placeholder {
+  color: #6b7280;
 }
 
 .register-eye-btn {
   position: absolute;
-  right: 10px;
+  right: 12px;
   background: none;
   border: none;
   cursor: pointer;
   padding: 4px;
   display: flex;
   align-items: center;
-  color: #9ca3af;
+  color: #6b7280;
+  transition: color 0.15s;
 }
 
 .register-eye-btn svg {
-  width: 16px;
-  height: 16px;
-  fill: #9ca3af;
+  width: 18px;
+  height: 18px;
+  fill: #6b7280;
 }
 
 .register-eye-btn:hover svg {
-  fill: #1565c0;
+  fill: #ffffff;
 }
 
-/* ── Submit Button ── */
+/* ── Submit / Next Step Buttons ── */
 .register-submit-btn {
   width: 100%;
-  padding: 12px;
-  background: #3b5bdb;
+  padding: 14px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 6px;
-  transition: background 0.2s, transform 0.1s;
+  margin-top: 10px;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  transition: all 0.2s ease;
 }
 
 .register-submit-btn:hover {
-  background: #2f4ac5;
+  background: linear-gradient(135deg, #818cf8 0%, #5a57e6 100%);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.45);
+  transform: translateY(-1px);
 }
 
 .register-submit-btn:active {
-  transform: scale(0.99);
+  transform: translateY(0);
 }
 
 .register-login-link {
   text-align: center;
-  font-size: 0.83rem;
-  color: #6b7280;
+  font-size: 0.85rem;
+  color: #9ca3af;
   margin: 0;
 }
 
 .register-login-link a {
-  color: #3b5bdb;
+  color: #818cf8;
   font-weight: 600;
   text-decoration: none;
+  transition: color 0.15s;
 }
 
 .register-login-link a:hover {
+  color: #a5b4fc;
   text-decoration: underline;
 }
 
-/* ── Responsive ── */
-@media (max-width: 900px) {
+/* ── Webcam scanning UI panel ── */
+.webcam-container {
+  position: relative;
+  width: 320px;
+  height: 240px;
+  background: #000;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  margin-bottom: 10px;
+}
+
+/* Scanning glowing animation line overlay */
+.webcam-container::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #10b981, transparent);
+  box-shadow: 0 0 10px #10b981;
+  z-index: 2;
+  top: 0;
+  animation: scanLaser 3s linear infinite;
+}
+
+@keyframes scanLaser {
+  0% { top: 0; }
+  50% { top: 100%; }
+  100% { top: 0; }
+}
+
+.register-input-wrap.input-error {
+  border-color: #f87171;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15);
+}
+
+.error-msg {
+  color: #f87171;
+  font-size: 0.75rem;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* ── Responsive layout ── */
+@media (max-width: 992px) {
   .register-left {
     display: none;
   }
   .register-right {
-    padding: 24px 16px;
+    padding: 32px 16px;
   }
   .register-row {
     grid-template-columns: 1fr;
-  }
-}
-
-.register-input-wrap.input-error {
-  border-color: #e53e3e;
-}
-
-.error-msg {
-  color: #e53e3e;
-  font-size: 11px;
-  margin-top: 3px;
-  font-weight: 500;
-}
-
-.register-success-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #ecfdf5;
-  border: 1.5px solid #10b981;
-  color: #065f46;
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  animation: slideDown 0.3s ease-out;
-}
-
-.register-success-banner svg {
-  width: 20px;
-  height: 20px;
-  fill: #10b981;
-  flex-shrink: 0;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+    gap: 12px;
   }
 }
