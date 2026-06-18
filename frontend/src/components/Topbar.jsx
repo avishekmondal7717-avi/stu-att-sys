@@ -2,6 +2,15 @@ import { Menu, Bell, ChevronDown } from 'lucide-react';
 import './Topbar.css';
 
 export default function Topbar({ onToggleSidebar }) {
+  const currentUserStr = localStorage.getItem("currentUser");
+  const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+  const userFullName = localStorage.getItem("userFullName") || "User";
+  const userRole = localStorage.getItem("userRole") || "Role";
+
+  const photoUrl = (currentUser && currentUser.photo)
+    ? currentUser.photo
+    : `https://i.pravatar.cc/36?img=${Math.abs(userFullName.charCodeAt(0)) % 70}`;
+
   return (
     <header className="topbar">
       <button className="topbar-menu-btn" onClick={onToggleSidebar}>
@@ -16,12 +25,12 @@ export default function Topbar({ onToggleSidebar }) {
 
         <div className="admin-profile">
           <img
-            src={`https://i.pravatar.cc/36?img=${Math.abs((localStorage.getItem("userFullName") || "User").charCodeAt(0)) % 70}`}
+            src={photoUrl}
             alt="Profile"
             className="admin-avatar"
           />
           <span className="admin-name">
-            {localStorage.getItem("userFullName") || "User"} ({localStorage.getItem("userRole") || "Role"})
+            {userFullName} ({userRole})
           </span>
           <ChevronDown size={16} color="#555" />
         </div>

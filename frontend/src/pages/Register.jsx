@@ -117,8 +117,12 @@ const Register = () => {
   const handlePhoto = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setProfilePhoto(file);
-      setPhotoPreview(URL.createObjectURL(file));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePhoto(reader.result);
+        setPhotoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -167,7 +171,6 @@ const Register = () => {
       const payload = {
         rollNumber: formData.studentId,
         fullName: formData.fullName,
-        fatherName: "Raj Sharma",
         email: formData.email,
         contact: formData.phone,
         department: formData.department,
@@ -175,7 +178,8 @@ const Register = () => {
         semester: formData.semester.replace("Semester ", ""),
         gender: formData.gender,
         dob: formData.dateOfBirth,
-        status: "Active"
+        status: "Active",
+        photo: profilePhoto
       };
 
       await authAPI.registerStudent({

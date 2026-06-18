@@ -143,7 +143,6 @@ const StudentList = () => {
               </div>
             </div>
             {[
-              ['Father\'s Name', viewStudent.fatherName],
               ['Email', viewStudent.email],
               ['Contact', viewStudent.contact],
               ['Department', viewStudent.department],

@@ -46,7 +46,6 @@ def init_db():
         id SERIAL PRIMARY KEY,
         rollnumber TEXT UNIQUE NOT NULL,
         fullname TEXT NOT NULL,
-        fathername TEXT,
         email TEXT UNIQUE,
         contact TEXT,
         department TEXT,

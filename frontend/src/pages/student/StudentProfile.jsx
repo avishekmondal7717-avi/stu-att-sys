@@ -17,7 +17,6 @@ export default function StudentProfile() {
     photo: currentUser.photo || `https://i.pravatar.cc/100?img=${Math.abs(currentUser.fullName.charCodeAt(0)) % 70}`,
     address: currentUser.address || 'N/A',
     dob: currentUser.dob || 'N/A',
-    fatherName: currentUser.fatherName || 'N/A',
     status: currentUser.status || 'Active',
   } : {
     fullName: 'Aarav Sharma',
@@ -31,7 +30,6 @@ export default function StudentProfile() {
     photo: 'https://i.pravatar.cc/100?img=11',
     address: 'Salt Lake City, Sector V, Kolkata, West Bengal',
     dob: '2003-04-15',
-    fatherName: 'Raj Sharma',
     status: 'Active',
   };
   return (
@@ -57,10 +55,6 @@ export default function StudentProfile() {
         <div className="profile-details" style={{ marginTop: 12 }}>
           <Row gutter={[24, 16]}>
             <Col xs={24} sm={12}>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ color: '#888', fontSize: 12, textTransform: 'uppercase', marginBottom: 2 }}>Father's Name</div>
-                <div style={{ fontWeight: 600, color: '#2d3748' }}>{currentStudent.fatherName}</div>
-              </div>
               <div style={{ marginBottom: 12 }}>
                 <div style={{ color: '#888', fontSize: 12, textTransform: 'uppercase', marginBottom: 2 }}>Department</div>
                 <div style={{ fontWeight: 600, color: '#2d3748' }}>{currentStudent.department}</div>

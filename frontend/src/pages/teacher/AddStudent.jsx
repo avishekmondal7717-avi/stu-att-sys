@@ -88,14 +88,9 @@ const AddStudent = () => {
           <Col xs={24} lg={16}>
             <Card title={<span style={{ color: '#1e40af', fontWeight: 700 }}>Student Information</span>} style={{ borderRadius: 12, marginBottom: 16 }}>
               <Row gutter={16}>
-                <Col xs={24} md={12}>
+                <Col xs={24} md={24}>
                   <Form.Item label="Full Name" name="fullName" rules={[{ required: true, message: 'Required' }]}>
                     <Input placeholder="Enter full name" size="large" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item label="Father's Name" name="fatherName">
-                    <Input placeholder="Enter father's name" size="large" />
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>

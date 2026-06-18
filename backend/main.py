@@ -103,7 +103,6 @@ def require_role(allowed_roles: List[str]):
 class StudentCreate(BaseModel):
     rollNumber: str
     fullName: str
-    fatherName: Optional[str] = ""
     email: Optional[str] = ""
     contact: Optional[str] = ""
     department: str
@@ -112,6 +111,7 @@ class StudentCreate(BaseModel):
     gender: Optional[str] = "Male"
     dob: Optional[str] = ""
     status: Optional[str] = "Pending Verification"
+    photo: Optional[str] = ""
 
 class FaceEnrollRequest(BaseModel):
     images: List[str] # List of base64 image strings
@@ -137,7 +137,6 @@ class LoginRequest(BaseModel):
 class StudentRegisterRequest(BaseModel):
     rollNumber: str
     fullName: str
-    fatherName: Optional[str] = "Raj Sharma"
     email: str
     contact: Optional[str] = ""
     department: str
@@ -146,6 +145,7 @@ class StudentRegisterRequest(BaseModel):
     gender: Optional[str] = "Male"
     dob: Optional[str] = ""
     password: str
+    photo: Optional[str] = ""
 
 class TeacherRegisterRequest(BaseModel):
     teacherId: str
@@ -172,7 +172,6 @@ def row_to_dict(row):
     mapping = {
         'rollnumber': 'rollNumber',
         'fullname': 'fullName',
-        'fathername': 'fatherName',
         'teacherid': 'teacherId',
         'referenceid': 'referenceId',
         'createdat': 'createdAt',
@@ -199,16 +198,24 @@ async def register_student(payload: StudentRegisterRequest):
 
         # Insert student record
         cursor.execute("""
-            INSERT INTO students (rollNumber, fullName, fatherName, email, contact, department, course, semester, gender, dob, status, photo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, status, photo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, (
-            payload.rollNumber, payload.fullName, payload.fatherName, payload.email, payload.contact,
+            payload.rollNumber, payload.fullName, payload.email, payload.contact,
             payload.department, payload.course, payload.semester, payload.gender, payload.dob,
-            "Active", f"https://i.pravatar.cc/40?img={hash(payload.rollNumber) % 70}"
+            "Active", payload.photo if payload.photo else f"https://i.pravatar.cc/40?img={hash(payload.rollNumber) % 70}"
         ))
         
         # Get student DB ID
-        student_db_id = cursor.lastrowid
+        student_db_id = cursor.fetchone()[0]
+        
+        # Automatically enroll student's face if photo is uploaded during registration
+        if payload.photo:
+            try:
+                face_service.enroll_student_faces(payload.rollNumber, [payload.photo])
+            except Exception as e:
+                print(f"Error enrolling face during registration: {e}")
         
         # Insert user login account
         hashed = hash_password(payload.password)
@@ -247,12 +254,13 @@ async def register_teacher(payload: TeacherRegisterRequest):
         cursor.execute("""
             INSERT INTO teachers (teacherId, fullName, email, contact, department, status, photo)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, (
             payload.teacherId, payload.fullName, payload.email, payload.contact,
             payload.department, "Active", f"https://i.pravatar.cc/40?img={hash(payload.teacherId) % 70 + 50}"
         ))
         
-        teacher_db_id = cursor.lastrowid
+        teacher_db_id = cursor.fetchone()[0]
         
         # Insert user login account
         hashed = hash_password(payload.password)
@@ -318,7 +326,6 @@ async def login(payload: LoginRequest):
             student_dict = row_to_dict(student_row)
             profile_data = {
                 "rollNumber": student_dict.get("rollNumber"),
-                "fatherName": student_dict.get("fatherName"),
                 "contact": student_dict.get("contact"),
                 "department": student_dict.get("department"),
                 "course": student_dict.get("course"),
@@ -431,13 +438,17 @@ async def create_student(student: StudentCreate):
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            INSERT INTO students (rollNumber, fullName, fatherName, email, contact, department, course, semester, gender, dob, status, photo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, status, photo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, (
-            student.rollNumber, student.fullName, student.fatherName, student.email, student.contact,
+            student.rollNumber, student.fullName, student.email, student.contact,
             student.department, student.course, student.semester, student.gender, student.dob,
-            student.status, f"https://i.pravatar.cc/40?img={hash(student.rollNumber) % 70}"
+            student.status, student.photo if student.photo else f"https://i.pravatar.cc/40?img={hash(student.rollNumber) % 70}"
         ))
+        
+        # Get student DB ID
+        new_id = cursor.fetchone()[0]
         
         # Auto-create user credentials for the newly created student
         default_pass = hash_password("student@123")
@@ -449,7 +460,6 @@ async def create_student(student: StudentCreate):
         ))
         
         conn.commit()
-        new_id = cursor.lastrowid
         conn.close()
         return {"id": new_id, "rollNumber": student.rollNumber, "fullName": student.fullName}
     except psycopg2.IntegrityError:
@@ -471,12 +481,12 @@ async def update_student(student_id: int, student: StudentCreate):
     
     cursor.execute("""
         UPDATE students
-        SET rollNumber=%s, fullName=%s, fatherName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, status=%s
+        SET rollNumber=%s, fullName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, status=%s, photo=%s
         WHERE id=%s
     """, (
-        student.rollNumber, student.fullName, student.fatherName, student.email, student.contact,
+        student.rollNumber, student.fullName, student.email, student.contact,
         student.department, student.course, student.semester, student.gender, student.dob,
-        student.status, student_id
+        student.status, student.photo if student.photo else f"https://i.pravatar.cc/40?img={hash(student.rollNumber) % 70}", student_id
     ))
     
     # Also update user login profile

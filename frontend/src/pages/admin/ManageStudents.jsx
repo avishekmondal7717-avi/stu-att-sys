@@ -186,7 +186,6 @@ export default function ManageStudents() {
               </div>
             </div>
             {[
-              ['Father\'s Name', viewStudent.fatherName],
               ['Email', viewStudent.email],
               ['Contact', viewStudent.contact],
               ['Department', viewStudent.department],
@@ -282,9 +281,7 @@ export default function ManageStudents() {
             </Col>
           </Row>
 
-          <Form.Item name="fatherName" label="Father's Name" rules={[{ required: true, message: 'Please enter father name' }]}>
-            <Input placeholder="E.g. Raj Sharma" />
-          </Form.Item>
+          {/* Father's name removed */}
         </Form>
       </Modal>
     </div>
