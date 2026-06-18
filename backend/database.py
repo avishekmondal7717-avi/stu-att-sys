@@ -136,9 +136,22 @@ def init_db():
         timeout TEXT NOT NULL,
         status TEXT NOT NULL,
         markedby TEXT NOT NULL,
-        UNIQUE(rollnumber, date)
+        UNIQUE(rollnumber, date, markedby)
     )
     """)
+    
+    # Run migration to update UNIQUE constraint for existing databases
+    cursor.execute("SELECT 1 FROM pg_constraint WHERE conname = 'attendance_rollnumber_date_markedby_key';")
+    exists = cursor.fetchone()
+    if not exists:
+        try:
+            cursor.execute("ALTER TABLE attendance DROP CONSTRAINT IF EXISTS attendance_rollnumber_date_key;")
+            cursor.execute("""
+                ALTER TABLE attendance 
+                ADD CONSTRAINT attendance_rollnumber_date_markedby_key UNIQUE(rollnumber, date, markedby);
+            """)
+        except Exception as e:
+            print(f"Migration: unique constraint update: {e}")
 
     # Create active sessions table
     cursor.execute("""

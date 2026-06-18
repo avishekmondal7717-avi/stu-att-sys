@@ -1,6 +1,6 @@
-import { App as AntdApp } from 'antd';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { App as AntdApp, notification } from 'antd';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import { attendanceAPI } from './services/api';
 import Login from './pages/Login';
 import Sidebar from './components/Sidebar';
@@ -69,6 +69,7 @@ function TeacherLayout() {
 }
 
 function StudentLayout() {
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   
@@ -77,6 +78,10 @@ function StudentLayout() {
   const [presentCount, setPresentCount] = useState(0);
   const [absentCount, setAbsentCount] = useState(0);
   const [totalClasses, setTotalClasses] = useState(0);
+  const [activeSessions, setActiveSessions] = useState([]);
+  
+  // Keep track of sessions we already triggered notifications for
+  const notifiedSessions = useRef(new Set());
 
   useEffect(() => {
     if (theme === "dark") {
@@ -107,13 +112,70 @@ function StudentLayout() {
     fetchStudentData();
   }, []);
 
+  // Poll active sessions globally for notifications and sharing with children
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const res = await attendanceAPI.getSessions();
+        const active = (res.sessions || []).filter(s => s.isActive);
+        
+        // Find newly active sessions
+        active.forEach(session => {
+          if (!notifiedSessions.current.has(session.classCode)) {
+            // Trigger Ant Design Notification toast
+            notification.info({
+              message: 'Class Attendance Live!',
+              description: `The attendance window for ${session.className} is now open. Click here to mark your attendance.`,
+              duration: 15,
+              placement: 'topRight',
+              style: { cursor: 'pointer', borderLeft: '4px solid #10b981' },
+              onClick: () => {
+                navigate(`/student/webcam?class=${session.classCode}`);
+                notification.destroy();
+              }
+            });
+            notifiedSessions.current.add(session.classCode);
+          }
+        });
+
+        // Clean up from notified sessions if they are no longer active
+        const activeCodes = new Set(active.map(s => s.classCode));
+        notifiedSessions.current.forEach(code => {
+          if (!activeCodes.has(code)) {
+            notifiedSessions.current.delete(code);
+          }
+        });
+
+        setActiveSessions(active);
+      } catch (err) {
+        console.error("Error fetching sessions in Layout:", err);
+      }
+    };
+
+    fetchSessions();
+    const interval = setInterval(fetchSessions, 4000);
+    return () => clearInterval(interval);
+  }, [navigate]);
+
   return (
     <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${theme}`}>
       <StudentSidebar theme={theme} />
       <div className="main-area">
         <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} theme={theme} setTheme={setTheme} />
         <main className="page-content">
-          <Outlet context={{ logs, setLogs, presentCount, setPresentCount, absentCount, totalClasses, setTotalClasses, fetchStudentData, theme, setTheme }} />
+          <Outlet context={{ 
+            logs, 
+            setLogs, 
+            presentCount, 
+            setPresentCount, 
+            absentCount, 
+            totalClasses, 
+            setTotalClasses, 
+            fetchStudentData, 
+            activeSessions, 
+            theme, 
+            setTheme 
+          }} />
         </main>
       </div>
     </div>

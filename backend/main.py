@@ -2,6 +2,7 @@
 import psycopg2
 import jwt
 from datetime import datetime, timedelta
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -59,7 +60,13 @@ def extract_face_embedding(frame: np.ndarray):
         return feature.flatten().tolist(), box.tolist(), is_live
     return None, None, False
 
-app = FastAPI(title="Smart Attendance System API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup DB Initialization
+    init_db()
+    yield
+
+app = FastAPI(title="Smart Attendance System API", lifespan=lifespan)
 
 # Enable CORS for frontend integration
 app.add_middleware(
@@ -73,11 +80,6 @@ app.add_middleware(
 from fastapi.staticfiles import StaticFiles
 (data_dir / "uploads").mkdir(parents=True, exist_ok=True)
 app.mount("/static/uploads", StaticFiles(directory=str(data_dir / "uploads")), name="uploads")
-
-# Startup DB Initialization
-@app.on_event("startup")
-def startup_event():
-    init_db()
 
 # JWT Config
 JWT_SECRET = "supersecretkeyforattendanceapp2026"
@@ -813,14 +815,14 @@ async def mark_manual(payload: AttendanceMarkRequest):
         cursor.execute("""
             INSERT INTO attendance (rollNumber, studentName, department, date, timeIn, timeOut, status, markedBy)
             VALUES (%s, %s, %s, %s, %s, 'Pending', 'Present', 'Manual')
-            ON CONFLICT(rollNumber, date) DO UPDATE SET status='Present', timeIn=%s, markedBy='Manual'
+            ON CONFLICT(rollNumber, date, markedBy) DO UPDATE SET status='Present', timeIn=%s, markedBy='Manual'
         """, (roll_number, full_name, dept, payload.date, time_str, time_str))
     else:
         # Mark Absent
         cursor.execute("""
             INSERT INTO attendance (rollNumber, studentName, department, date, timeIn, timeOut, status, markedBy)
             VALUES (%s, %s, %s, %s, '-', '-', 'Absent', 'Manual')
-            ON CONFLICT(rollNumber, date) DO UPDATE SET status='Absent', timeIn='-', timeOut='-', markedBy='Manual'
+            ON CONFLICT(rollNumber, date, markedBy) DO UPDATE SET status='Absent', timeIn='-', timeOut='-', markedBy='Manual'
         """, (roll_number, full_name, dept, payload.date))
         
     conn.commit()
@@ -983,12 +985,9 @@ async def export_attendance_report(
     department: Optional[str] = None,
     semester: Optional[str] = None,
     start_date: Optional[str] = None,
-    end_date: Optional[str] = None
+    end_date: Optional[str] = None,
+    format: Optional[str] = "csv"
 ):
-    import csv
-    from io import StringIO
-    from fastapi.responses import StreamingResponse
-
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -1019,39 +1018,126 @@ async def export_attendance_report(
     rows = cursor.fetchall()
     conn.close()
     
-    # Generate CSV in-memory
-    output = StringIO()
-    writer = csv.writer(output)
-    
-    # Write header
-    writer.writerow([
-        "Roll Number", "Full Name", "Department", "Semester", 
-        "Date", "Time In", "Time Out", "Status", "Marked By"
-    ])
-    
-    # Write rows
-    for r in rows:
+    if format == "xlsx":
+        import pandas as pd
+        from io import BytesIO
+        from fastapi.responses import StreamingResponse
+        
+        data = []
+        for r in rows:
+            data.append({
+                "Roll Number": r["rollnumber"],
+                "Full Name": r["fullname"],
+                "Department": r["department"],
+                "Semester": f"Semester {r['semester']}" if r["semester"] else "-",
+                "Date": r["date"] or "-",
+                "Time In": r["timein"] or "-",
+                "Time Out": r["timeout"] or "-",
+                "Status": r["status"] or "Absent",
+                "Marked By": r["markedby"] or "-"
+            })
+            
+        df = pd.DataFrame(data)
+        
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Attendance Report')
+            
+            # Format the Excel sheet using openpyxl
+            workbook = writer.book
+            worksheet = writer.sheets['Attendance Report']
+            
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            header_font = Font(name='Segoe UI', size=11, bold=True, color='FFFFFF')
+            header_fill = PatternFill(start_color='1E3A8A', end_color='1E3A8A', fill_type='solid') # Deep blue
+            center_align = Alignment(horizontal='center', vertical='center')
+            left_align = Alignment(horizontal='left', vertical='center')
+            
+            thin_side = Side(border_style="thin", color="D1D5DB")
+            border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+            
+            for col_num in range(1, len(df.columns) + 1):
+                cell = worksheet.cell(row=1, column=col_num)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_align
+                cell.border = border
+                
+            row_font = Font(name='Segoe UI', size=10)
+            for row_num in range(2, len(df) + 2):
+                for col_num in range(1, len(df.columns) + 1):
+                    cell = worksheet.cell(row=row_num, column=col_num)
+                    cell.font = row_font
+                    cell.border = border
+                    
+                    val = str(cell.value or '')
+                    if col_num in [1, 4, 5, 6, 7, 9]:
+                        cell.alignment = center_align
+                    else:
+                        cell.alignment = left_align
+                        
+                    if col_num == 8: # Status
+                        cell.alignment = center_align
+                        if val == "Present":
+                            cell.font = Font(name='Segoe UI', size=10, bold=True, color='15803D')
+                            cell.fill = PatternFill(start_color='DCFCE7', end_color='DCFCE7', fill_type='solid')
+                        elif val == "Absent":
+                            cell.font = Font(name='Segoe UI', size=10, bold=True, color='B91C1C')
+                            cell.fill = PatternFill(start_color='FEE2E2', end_color='FEE2E2', fill_type='solid')
+                            
+            for col in worksheet.columns:
+                max_len = 0
+                col_letter = col[0].column_letter
+                for cell in col:
+                    val_str = str(cell.value or '')
+                    if len(val_str) > max_len:
+                        max_len = len(val_str)
+                worksheet.column_dimensions[col_letter].width = max(max_len + 4, 12)
+                
+        output.seek(0)
+        filename = f"attendance_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    else:
+        # Default to CSV
+        import csv
+        from io import StringIO
+        from fastapi.responses import StreamingResponse
+        
+        output = StringIO()
+        writer = csv.writer(output)
+        
         writer.writerow([
-            r["rollnumber"],
-            r["fullname"],
-            r["department"],
-            f"Semester {r['semester']}" if r["semester"] else "-",
-            r["date"] or "-",
-            r["timein"] or "-",
-            r["timeout"] or "-",
-            r["status"] or "Absent",
-            r["markedby"] or "-"
+            "Roll Number", "Full Name", "Department", "Semester", 
+            "Date", "Time In", "Time Out", "Status", "Marked By"
         ])
         
-    output.seek(0)
-    
-    filename = f"attendance_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
+        for r in rows:
+            writer.writerow([
+                r["rollnumber"],
+                r["fullname"],
+                r["department"],
+                f"Semester {r['semester']}" if r["semester"] else "-",
+                r["date"] or "-",
+                r["timein"] or "-",
+                r["timeout"] or "-",
+                r["status"] or "Absent",
+                r["markedby"] or "-"
+            ])
+            
+        output.seek(0)
+        filename = f"attendance_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
 
 
 @app.get("/api/attendance/sessions", dependencies=[Depends(require_role(["admin", "teacher", "student"]))])
@@ -1157,7 +1243,7 @@ async def scan_attendance(request: ScanRequest, current_user: Optional[dict] = D
                     cursor.execute("""
                         INSERT INTO attendance (rollNumber, studentName, department, date, timeIn, timeOut, status, markedBy)
                         VALUES (%s, %s, %s, %s, %s, 'Pending', 'Present', %s)
-                        ON CONFLICT(rollNumber, date) DO UPDATE SET status='Present', timeIn=%s, markedBy=%s
+                        ON CONFLICT(rollNumber, date, markedBy) DO UPDATE SET status='Present', timeIn=%s, markedBy=%s
                     """, (roll, friendly_name, dept, today_str, time_str, marked_by_str, time_str, marked_by_str))
                     conn.commit()
                     face_info["marked"] = True

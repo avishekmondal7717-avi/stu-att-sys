@@ -21,6 +21,25 @@
   
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+
+  /* Auth Pages Design Tokens - Light Theme */
+  --auth-bg: #f8fafc;
+  --auth-text: #0f172a;
+  --auth-text-secondary: #475569;
+  --auth-text-muted: #64748b;
+  --auth-card-bg: rgba(255, 255, 255, 0.75);
+  --auth-card-border: rgba(15, 23, 42, 0.08);
+  --auth-card-shadow: 0 20px 40px rgba(15, 23, 42, 0.06);
+  --auth-left-bg: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  --auth-left-text: #1e1b4b;
+  --auth-left-desc: #4f46e5;
+  --auth-left-heading: #1e1b4b;
+  --auth-glow-color: rgba(99, 102, 241, 0.05);
+  
+  --auth-input-bg: #ffffff;
+  --auth-input-border: rgba(15, 23, 42, 0.1);
+  --auth-input-text: #0f172a;
+  --auth-input-focus-border: #6366f1;
 }
 
 :root.dark {
@@ -40,6 +59,25 @@
   
   --shadow-sm: 0 0 0 1px #27272a;
   --shadow-md: 0 0 0 1px #27272a, 0 8px 16px -4px rgba(0, 0, 0, 0.5);
+
+  /* Auth Pages Design Tokens - Dark Theme */
+  --auth-bg: #0b0f19;
+  --auth-text: #f3f4f6;
+  --auth-text-secondary: #9ca3af;
+  --auth-text-muted: #6b7280;
+  --auth-card-bg: rgba(255, 255, 255, 0.02);
+  --auth-card-border: rgba(255, 255, 255, 0.08);
+  --auth-card-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --auth-left-bg: linear-gradient(145deg, #0d1224 0%, #151c38 50%, #0d1224 100%);
+  --auth-left-text: #ffffff;
+  --auth-left-desc: #9ca3af;
+  --auth-left-heading: #ffffff;
+  --auth-glow-color: rgba(99, 102, 241, 0.15);
+  
+  --auth-input-bg: rgba(255, 255, 255, 0.03);
+  --auth-input-border: rgba(255, 255, 255, 0.08);
+  --auth-input-text: #ffffff;
+  --auth-input-focus-border: #6366f1;
 }
 
 * {
@@ -212,4 +250,20 @@ body {
 }
 .dark .ant-popconfirm-title, .dark .ant-popconfirm-description {
   color: var(--text-primary) !important;
+}
+.dark .ant-notification-notice {
+  background-color: #18181b !important;
+  color: #f4f4f5 !important;
+  border: 1px solid #27272a !important;
+}
+.dark .ant-notification-notice-message {
+  color: #ffffff !important;
+}
+.dark .ant-notification-notice-description {
+  color: #a1a1aa !important;
+}
+.dark .ant-message-notice-content {
+  background-color: #18181b !important;
+  color: #f4f4f5 !important;
+  border: 1px solid #27272a !important;
 }

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Menu, Bell, ChevronDown, Sun, Moon } from 'lucide-react';
 import './Topbar.css';
 
@@ -9,6 +10,31 @@ export default function Topbar({ onToggleSidebar, theme, setTheme }) {
   const currentUserStr = localStorage.getItem("currentUser");
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
   const userPhoto = currentUser ? currentUser.photo : null;
+
+  const [activeCount, setActiveCount] = useState(0);
+
+  useEffect(() => {
+    if (userRole !== 'student') return;
+    const fetchActiveCount = async () => {
+      try {
+        const response = await fetch('/api/attendance/sessions', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem("token")}`
+          }
+        });
+        if (response.ok) {
+          const res = await response.json();
+          const active = (res.sessions || []).filter(s => s.isActive);
+          setActiveCount(active.length);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchActiveCount();
+    const interval = setInterval(fetchActiveCount, 5000);
+    return () => clearInterval(interval);
+  }, [userRole]);
 
   return (
     <header className="topbar">
@@ -23,7 +49,7 @@ export default function Topbar({ onToggleSidebar, theme, setTheme }) {
 
         <button className="notif-btn">
           <Bell size={20} />
-          <span className="notif-badge">3</span>
+          {activeCount > 0 && <span className="notif-badge">{activeCount}</span>}
         </button>
 
         <div className="admin-profile">

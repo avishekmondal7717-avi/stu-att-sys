@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { notification } from "antd";
 import "./ForgotPassword.css";
 
 export default function ForgotPassword() {
@@ -37,6 +38,12 @@ export default function ForgotPassword() {
     setEmailError(err);
     if (!err) {
       setSubmitted(true);
+      notification.success({
+        message: "Reset Link Sent",
+        description: `A password reset instructions email has been sent to ${email}.`,
+        placement: "topRight",
+        duration: 4.5
+      });
     }
   };
 

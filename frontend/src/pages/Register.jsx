@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { message, Button, Steps } from "antd";
+import { message, notification, Button, Steps } from "antd";
 import { studentAPI, authAPI } from "../services/api";
 import "./Register.css";
 
@@ -84,10 +84,15 @@ const Register = () => {
 
   const handleNext = () => {
     if (validateStep1()) {
-      setCurrentStep(1);
-      startCamera();
+       setCurrentStep(1);
+       startCamera();
     } else {
-      message.error("Please fix the errors before proceeding.");
+      notification.warning({
+        message: "Validation Failed",
+        description: "Please review the highlighted errors on the form before continuing to the biometrics step.",
+        placement: "topRight",
+        duration: 4.5
+      });
     }
   };
 
@@ -167,11 +172,47 @@ const Register = () => {
         password: formData.password
       });
       
-      message.success("Successfully registered! Redirecting to login...");
-      setTimeout(() => navigate('/login'), 2000);
+      notification.success({
+        message: "Registration Successful",
+        description: "Your student profile and login account have been successfully created! Redirecting to login...",
+        placement: "topRight",
+        duration: 4
+      });
+      setTimeout(() => navigate('/login'), 2500);
     } catch (err) {
       console.error(err);
-      message.error(err?.response?.data?.detail || "Registration failed. Student ID or email might already exist.");
+      const errMsg = err.message || "Registration failed. Please try again.";
+      
+      // Categorize student registration errors for beautiful toasts
+      if (errMsg.includes("already exists") || errMsg.includes("already registered") || errMsg.includes("duplicated")) {
+        notification.warning({
+          message: "Registration Failed",
+          description: "A student account with this Roll Number or Email already exists. Please verify and log in.",
+          placement: "topRight",
+          duration: 5
+        });
+      } else if (errMsg.includes("detect a clear face")) {
+        notification.error({
+          message: "Biometrics Verification Failed",
+          description: "Could not detect a clear face. Please position yourself in a well-lit area and capture your face scan again.",
+          placement: "topRight",
+          duration: 5.5
+        });
+      } else if (errMsg.includes("photo") || errMsg.includes("photo data")) {
+        notification.error({
+          message: "Missing Profile Photo",
+          description: "A valid face scan is mandatory to train the AI face recognition system. Please complete the face scan step.",
+          placement: "topRight",
+          duration: 5
+        });
+      } else {
+        notification.error({
+          message: "Registration Error",
+          description: errMsg,
+          placement: "topRight",
+          duration: 4.5
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -55,17 +55,18 @@ const Reports = () => {
     fetchStats();
   }, [dateRange]);
 
-  const handleExport = async () => {
+  const handleExport = async (format = 'csv') => {
     try {
       const [start, end] = dateRange;
       const token = localStorage.getItem("token");
       const query = new URLSearchParams({
         department: filterDept,
         start_date: start.format('YYYY-MM-DD'),
-        end_date: end.format('YYYY-MM-DD')
+        end_date: end.format('YYYY-MM-DD'),
+        format: format
       }).toString();
 
-      message.loading({ content: 'Generating report...', key: 'export' });
+      message.loading({ content: `Generating ${format === 'xlsx' ? 'Excel' : 'CSV'} report...`, key: 'export' });
       
       const response = await fetch(`/api/reports/export?${query}`, {
         headers: {
@@ -79,15 +80,16 @@ const Reports = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `attendance_report_${start.format('YYYYMMDD')}_to_${end.format('YYYYMMDD')}.csv`;
+      const fileExt = format === 'xlsx' ? 'xlsx' : 'csv';
+      a.download = `attendance_report_${start.format('YYYYMMDD')}_to_${end.format('YYYYMMDD')}.${fileExt}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       
-      message.success({ content: 'Export download started!', key: 'export' });
+      message.success({ content: `${format === 'xlsx' ? 'Excel' : 'CSV'} export download started!`, key: 'export' });
     } catch (err) {
       console.error(err);
-      message.error({ content: 'Failed to export report CSV', key: 'export' });
+      message.error({ content: `Failed to export report ${format === 'xlsx' ? 'Excel' : 'CSV'}`, key: 'export' });
     }
   };
 
@@ -123,7 +125,8 @@ const Reports = () => {
           {DEPARTMENTS.map((d) => <Option key={d} value={d}>{d}</Option>)}
         </Select>
         <Button type="primary" icon={<FilterOutlined />} onClick={fetchStats} style={{ background: '#1e40af' }}>Filter</Button>
-        <Button type="default" icon={<DownloadOutlined />} onClick={handleExport} style={{ marginLeft: 'auto' }}>Export CSV</Button>
+        <Button type="default" icon={<DownloadOutlined />} onClick={() => handleExport('csv')} style={{ marginLeft: 'auto' }}>Export CSV</Button>
+        <Button type="primary" icon={<DownloadOutlined />} onClick={() => handleExport('xlsx')} style={{ background: '#10b981', borderColor: '#10b981' }}>Export Excel</Button>
       </div>
 
       {loading ? (

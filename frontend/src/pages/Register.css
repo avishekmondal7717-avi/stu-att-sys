@@ -8,10 +8,11 @@
   display: flex;
   height: 100vh;
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #0b0f19;
-  color: #f3f4f6;
+  background: var(--auth-bg);
+  color: var(--auth-text);
   position: relative;
   overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 /* Background glowing node for right side */
@@ -20,7 +21,7 @@
   position: absolute;
   width: 700px;
   height: 700px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%);
+  background: radial-gradient(circle, var(--auth-glow-color) 0%, rgba(99, 102, 241, 0) 70%);
   bottom: -200px;
   right: -100px;
   z-index: 0;
@@ -30,15 +31,16 @@
 /* ── Left Panel (Brand Panel) ── */
 .register-left {
   width: 40%;
-  background: linear-gradient(145deg, #0d1224 0%, #151c38 50%, #0d1224 100%);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--auth-left-bg);
+  border-right: 1px solid var(--auth-card-border);
   display: flex;
   flex-direction: column;
   padding: 60px 48px;
-  color: white;
+  color: var(--auth-left-text);
   position: relative;
   overflow: hidden;
   z-index: 1;
+  transition: all 0.3s ease;
 }
 
 .register-left::before {
@@ -150,19 +152,19 @@
   margin: 0 0 6px 0;
   font-size: 1rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--auth-left-heading);
 }
 
 .register-feature-item p {
   margin: 0;
   font-size: 0.85rem;
-  color: #9ca3af;
+  color: var(--auth-left-desc);
   line-height: 1.5;
 }
 
 .register-copyright {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--auth-text-muted);
   margin: 0;
 }
 
@@ -180,27 +182,27 @@
 
 /* Premium Form Card */
 .register-form-card {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--auth-card-bg);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--auth-card-border);
   border-radius: 20px;
   padding: 44px 40px;
   width: 100%;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3),
-              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: var(--auth-card-shadow);
   animation: cardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.3s ease;
 }
 
 /* Ant Steps Styling Override */
 .ant-steps .ant-steps-item-title {
-  color: #9ca3af !important;
+  color: var(--auth-text-secondary) !important;
   font-weight: 600 !important;
   font-family: 'Plus Jakarta Sans', sans-serif !important;
 }
 
 .ant-steps .ant-steps-item-active .ant-steps-item-title {
-  color: #ffffff !important;
+  color: var(--auth-text) !important;
 }
 
 .ant-steps .ant-steps-item-finish .ant-steps-item-title {
@@ -208,12 +210,12 @@
 }
 
 .ant-steps .ant-steps-item-icon {
-  background-color: rgba(255, 255, 255, 0.05) !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
+  background-color: var(--auth-input-bg) !important;
+  border-color: var(--auth-card-border) !important;
 }
 
 .ant-steps .ant-steps-item-icon .ant-steps-icon {
-  color: #9ca3af !important;
+  color: var(--auth-text-secondary) !important;
 }
 
 .ant-steps .ant-steps-item-active .ant-steps-item-icon {
@@ -302,7 +304,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2.5px solid #0b0f19;
+  border: 2.5px solid var(--auth-bg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
@@ -313,15 +315,13 @@
 .register-form-header h2 {
   font-size: 1.6rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--auth-text);
   margin: 0 0 6px;
 }
 
 .register-form-header p {
   font-size: 0.85rem;
-  color: #9ca3af;
+  color: var(--auth-text-secondary);
   margin: 0;
 }
 
@@ -347,7 +347,7 @@
 .register-field label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #cbd5e1;
+  color: var(--auth-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -357,15 +357,15 @@
   position: relative;
   display: flex;
   align-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--auth-input-border);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--auth-input-bg);
   transition: all 0.2s ease;
 }
 
 .register-input-wrap:focus-within {
-  border-color: #6366f1;
-  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--auth-input-focus-border);
+  background: var(--auth-input-bg);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
@@ -374,7 +374,7 @@
   left: 14px;
   width: 18px;
   height: 18px;
-  fill: #6b7280;
+  fill: var(--auth-text-muted);
   flex-shrink: 0;
   pointer-events: none;
 }
@@ -387,7 +387,7 @@
   border: none;
   outline: none;
   font-size: 0.875rem;
-  color: #ffffff;
+  color: var(--auth-input-text);
   background: transparent;
   border-radius: 10px;
 }
@@ -397,19 +397,19 @@
 .register-field > select {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--auth-input-border);
+  background: var(--auth-input-bg);
   outline: none;
   font-size: 0.875rem;
-  color: #ffffff;
+  color: var(--auth-input-text);
   border-radius: 10px;
   transition: all 0.2s ease;
 }
 
 .register-field > input:focus,
 .register-field > select:focus {
-  border-color: #6366f1;
-  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--auth-input-focus-border);
+  background: var(--auth-input-bg);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
@@ -428,8 +428,8 @@
 /* Dropdown selections */
 .register-input-wrap select option,
 .register-field select option {
-  background-color: #0d1224;
-  color: #ffffff;
+  background-color: var(--auth-bg);
+  color: var(--auth-text);
   padding: 10px;
 }
 

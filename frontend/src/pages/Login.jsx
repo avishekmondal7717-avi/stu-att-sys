@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { message } from "antd";
+import { message, notification } from "antd";
 import { authAPI } from "../services/api";
 import "./Login.css";
 
@@ -96,7 +96,12 @@ export default function Login() {
         localStorage.setItem("userFullName", res.user.fullName);
         localStorage.setItem("currentUser", JSON.stringify(res.user));
 
-        message.success("Login successful!");
+        notification.success({
+          message: "Welcome Back!",
+          description: `Successfully signed in as ${res.user.fullName || 'User'}. Redirecting to your dashboard...`,
+          placement: "topRight",
+          duration: 3
+        });
 
         if (res.user.role === "student") {
           navigate("/student/dashboard");
@@ -107,8 +112,47 @@ export default function Login() {
         }
       } catch (err) {
         console.error(err);
-        setEmailError(err.message || "An error occurred during authentication.");
+        const errMsg = err.message || "An error occurred during authentication.";
+        setEmailError(errMsg);
+
+        // Show premium toast notification with proper error logic
+        if (errMsg.includes("Invalid email or password")) {
+          notification.warning({
+            message: "Authentication Failed",
+            description: "Incorrect password or email address. Please double-check your credentials and try again.",
+            placement: "topRight",
+            duration: 4.5
+          });
+        } else if (errMsg.includes("suspended")) {
+          notification.error({
+            message: "Account Suspended",
+            description: "Your portal access has been suspended. Please contact the administrator for support.",
+            placement: "topRight",
+            duration: 5
+          });
+        } else if (errMsg.includes("role")) {
+          notification.error({
+            message: "Role Unauthorized",
+            description: `You are not authorized to log in as a ${role === 'student' ? 'Student' : 'Teacher'}.`,
+            placement: "topRight",
+            duration: 5
+          });
+        } else {
+          notification.error({
+            message: "Login Error",
+            description: errMsg,
+            placement: "topRight",
+            duration: 4.5
+          });
+        }
       }
+    } else {
+      notification.warning({
+        message: "Validation Error",
+        description: "Please check the form for errors or blank fields before continuing.",
+        placement: "topRight",
+        duration: 4
+      });
     }
   };
 

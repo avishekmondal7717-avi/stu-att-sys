@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { message } from "antd";
+import { message, notification } from "antd";
 import "./AdminLogin.css";
 import { authAPI } from "../services/api";
 
@@ -89,12 +89,49 @@ export default function AdminLogin() {
           localStorage.setItem("rememberAdminMe", "false");
         }
         
-        message.success("Login successful!");
+        notification.success({
+          message: "Welcome, Administrator!",
+          description: `Successfully authenticated as ${res.user.fullName || 'Admin'}. Accessing control center...`,
+          placement: "topRight",
+          duration: 3
+        });
         navigate("/admin/dashboard");
       } catch (err) {
         console.error(err);
-        setPasswordError(err.message || "Failed to sign in. Please check your credentials.");
+        const errMsg = err.message || "Failed to sign in. Please check your credentials.";
+        setPasswordError(errMsg);
+
+        // Show premium toast notification with proper error logic
+        if (errMsg.includes("Invalid email or password")) {
+          notification.warning({
+            message: "Authentication Failed",
+            description: "Incorrect password or administrator email. Please double-check your credentials and try again.",
+            placement: "topRight",
+            duration: 4.5
+          });
+        } else if (errMsg.includes("role") || errMsg.includes("Unauthorized")) {
+          notification.error({
+            message: "Unauthorized Access",
+            description: "This portal is restricted to system administrators. Your account does not have access privileges.",
+            placement: "topRight",
+            duration: 5
+          });
+        } else {
+          notification.error({
+            message: "Sign In Error",
+            description: errMsg,
+            placement: "topRight",
+            duration: 4.5
+          });
+        }
       }
+    } else {
+      notification.warning({
+        message: "Validation Error",
+        description: "Please check the form for errors or blank fields before continuing.",
+        placement: "topRight",
+        duration: 4
+      });
     }
   };
 

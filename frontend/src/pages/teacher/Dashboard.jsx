@@ -26,12 +26,13 @@ import {
   Divider,
   HStack
 } from '@chakra-ui/react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Play, Activity } from 'lucide-react';
 import { dashboardAPI } from '../../services/api';
 
 export default function FacultyDashboard() {
   const navigate = useNavigate();
+  const { theme } = useOutletContext();
   const toast = useToast();
 
   const [department, setDepartment] = useState('');
@@ -92,6 +93,15 @@ export default function FacultyDashboard() {
     navigate(`/webcam?dept=${encodeURIComponent(department)}&sem=${encodeURIComponent(semester)}&sub=${encodeURIComponent(subject)}`);
   };
 
+  const isDark = theme === 'dark';
+  const bgPrimary = isDark ? '#09090b' : 'gray.50';
+  const bgSecondary = isDark ? '#18181b' : 'white';
+  const borderColor = isDark ? '#27272a' : 'gray.200';
+  const textColor = isDark ? '#f4f4f5' : 'gray.800';
+  const textMuted = isDark ? '#a1a1aa' : 'gray.500';
+  const textLabel = isDark ? '#e4e4e7' : 'gray.600';
+  const optionBg = isDark ? '#18181b' : 'white';
+
   if (loading) {
     return (
       <Flex minH="80vh" align="center" justify="center">
@@ -101,77 +111,89 @@ export default function FacultyDashboard() {
   }
 
   return (
-    <Box p={6} bg="gray.50" minH="100vh" w="100%">
+    <Box p={6} bg={bgPrimary} minH="100vh" w="100%" transition="all 0.3s">
       {/* Title Header */}
       <Box mb={6}>
-        <Heading size="lg" color="gray.800" fontWeight="bold">Faculty Dashboard</Heading>
-        <Text color="gray.500" fontSize="sm">Launch scanning sessions and view live student attendance updates</Text>
+        <Heading size="lg" color={textColor} fontWeight="bold">Faculty Dashboard</Heading>
+        <Text color={textMuted} fontSize="sm">Launch scanning sessions and view live student attendance updates</Text>
       </Box>
 
       {/* Primary Grid Layout */}
       <Grid templateColumns={{ base: "1fr", lg: "2fr 1fr" }} gap={6}>
         {/* Left Panel: Session Setup Wizard */}
         <GridItem>
-          <Card borderRadius="xl" shadow="md" bg="white">
+          <Card borderRadius="xl" shadow="md" bg={bgSecondary} border={isDark ? "1px solid" : "none"} borderColor={borderColor}>
             <CardHeader pb={0}>
-              <Heading size="md" color="gray.700">Initialize Biometric Session</Heading>
-              <Text fontSize="xs" color="gray.400">Configure parameters to deploy the real-time SFace scanning window</Text>
+              <Heading size="md" color={textColor}>Initialize Biometric Session</Heading>
+              <Text fontSize="xs" color={textMuted}>Configure parameters to deploy the real-time SFace scanning window</Text>
             </CardHeader>
             <CardBody>
               <Stack spacing={5}>
                 <FormControl isRequired>
-                  <FormLabel fontSize="sm" fontWeight="bold" color="gray.600">Select Department</FormLabel>
+                  <FormLabel fontSize="sm" fontWeight="bold" color={textLabel}>Select Department</FormLabel>
                   <Select
                     placeholder="Choose Department"
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     focusBorderColor="blue.400"
+                    bg={bgSecondary}
+                    color={textColor}
+                    borderColor={borderColor}
+                    _hover={{ borderColor: isDark ? 'whiteAlpha.450' : 'gray.300' }}
                   >
-                    <option value="Computer Science">Computer Science</option>
-                    <option value="Information Technology">Information Technology</option>
-                    <option value="Electronics & Communication">Electronics & Communication</option>
-                    <option value="Mechanical Engineering">Mechanical Engineering</option>
-                    <option value="Civil Engineering">Civil Engineering</option>
-                    <option value="Electrical Engineering">Electrical Engineering</option>
+                    <option value="Computer Science" style={{ background: optionBg, color: textColor }}>Computer Science</option>
+                    <option value="Information Technology" style={{ background: optionBg, color: textColor }}>Information Technology</option>
+                    <option value="Electronics & Communication" style={{ background: optionBg, color: textColor }}>Electronics & Communication</option>
+                    <option value="Mechanical Engineering" style={{ background: optionBg, color: textColor }}>Mechanical Engineering</option>
+                    <option value="Civil Engineering" style={{ background: optionBg, color: textColor }}>Civil Engineering</option>
+                    <option value="Electrical Engineering" style={{ background: optionBg, color: textColor }}>Electrical Engineering</option>
                   </Select>
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel fontSize="sm" fontWeight="bold" color="gray.600">Select Semester</FormLabel>
+                  <FormLabel fontSize="sm" fontWeight="bold" color={textLabel}>Select Semester</FormLabel>
                   <Select
                     placeholder="Choose Semester"
                     value={semester}
                     onChange={(e) => setSemester(e.target.value)}
                     focusBorderColor="blue.400"
+                    bg={bgSecondary}
+                    color={textColor}
+                    borderColor={borderColor}
+                    _hover={{ borderColor: isDark ? 'whiteAlpha.450' : 'gray.300' }}
                   >
-                    <option value="1">Semester 1</option>
-                    <option value="2">Semester 2</option>
-                    <option value="3">Semester 3</option>
-                    <option value="4">Semester 4</option>
-                    <option value="5">Semester 5</option>
-                    <option value="6">Semester 6</option>
-                    <option value="7">Semester 7</option>
-                    <option value="8">Semester 8</option>
+                    <option value="1" style={{ background: optionBg, color: textColor }}>Semester 1</option>
+                    <option value="2" style={{ background: optionBg, color: textColor }}>Semester 2</option>
+                    <option value="3" style={{ background: optionBg, color: textColor }}>Semester 3</option>
+                    <option value="4" style={{ background: optionBg, color: textColor }}>Semester 4</option>
+                    <option value="5" style={{ background: optionBg, color: textColor }}>Semester 5</option>
+                    <option value="6" style={{ background: optionBg, color: textColor }}>Semester 6</option>
+                    <option value="7" style={{ background: optionBg, color: textColor }}>Semester 7</option>
+                    <option value="8" style={{ background: optionBg, color: textColor }}>Semester 8</option>
                   </Select>
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel fontSize="sm" fontWeight="bold" color="gray.600">Subject / Course Module</FormLabel>
+                  <FormLabel fontSize="sm" fontWeight="bold" color={textLabel}>Subject / Course Module</FormLabel>
                   <Select
                     placeholder="Choose Course Module"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     focusBorderColor="blue.400"
+                    bg={bgSecondary}
+                    color={textColor}
+                    borderColor={borderColor}
+                    _hover={{ borderColor: isDark ? 'whiteAlpha.450' : 'gray.300' }}
                   >
-                    <option value="Machine Learning">Machine Learning (CS-401)</option>
-                    <option value="Database Systems">Database Systems (IT-402)</option>
-                    <option value="Computer Networks">Computer Networks (EC-403)</option>
-                    <option value="Software Engineering">Software Engineering (CS-404)</option>
-                    <option value="Theory of Computation">Theory of Computation (CS-405)</option>
+                    <option value="Machine Learning" style={{ background: optionBg, color: textColor }}>Machine Learning (CS-401)</option>
+                    <option value="Database Systems" style={{ background: optionBg, color: textColor }}>Database Systems (IT-402)</option>
+                    <option value="Computer Networks" style={{ background: optionBg, color: textColor }}>Computer Networks (EC-403)</option>
+                    <option value="Software Engineering" style={{ background: optionBg, color: textColor }}>Software Engineering (CS-404)</option>
+                    <option value="Theory of Computation" style={{ background: optionBg, color: textColor }}>Theory of Computation (CS-405)</option>
                   </Select>
                 </FormControl>
 
-                <Divider pt={2} />
+                <Divider pt={2} borderColor={borderColor} />
 
                 <Button
                   leftIcon={<Play size={18} />}
@@ -192,11 +214,11 @@ export default function FacultyDashboard() {
 
         {/* Right Panel: Running Log of Matched Check-ins */}
         <GridItem>
-          <Card borderRadius="xl" shadow="md" bg="white" h="100%">
+          <Card borderRadius="xl" shadow="md" bg={bgSecondary} h="100%" border={isDark ? "1px solid" : "none"} borderColor={borderColor}>
             <CardHeader pb={2} display="flex" justifyContent="space-between" align="center">
               <Box>
-                <Heading size="md" color="gray.700">Session Roster Log</Heading>
-                <Text fontSize="xs" color="gray.400">Real-time biometric matched check-ins</Text>
+                <Heading size="md" color={textColor}>Session Roster Log</Heading>
+                <Text fontSize="xs" color={textMuted}>Real-time biometric matched check-ins</Text>
               </Box>
               <Badge colorScheme="green" variant="solid" px={2} py={1} borderRadius="md">
                 Live
@@ -205,13 +227,13 @@ export default function FacultyDashboard() {
             <CardBody overflowY="auto" maxH="480px">
               <Stack spacing={4}>
                 {stats.recentAttendance.length === 0 ? (
-                  <Flex h="250px" direction="column" align="center" justify="center" color="gray.400" gap={2}>
+                  <Flex h="250px" direction="column" align="center" justify="center" color={textMuted} gap={2}>
                     <Activity size={32} />
                     <Text fontSize="sm">Roster stream is currently empty.</Text>
                   </Flex>
                 ) : (
                   stats.recentAttendance.map((item, index) => (
-                    <Flex key={index} align="center" p={3} bg="gray.50" borderRadius="lg" shadow="sm">
+                    <Flex key={index} align="center" p={3} bg={isDark ? '#27272a' : 'gray.50'} borderRadius="lg" shadow="sm">
                       {/* Avatar collection with semantic green/red presence rings as requested */}
                       <Avatar
                         size="sm"
@@ -223,8 +245,8 @@ export default function FacultyDashboard() {
                         mr={3}
                       />
                       <Box>
-                        <Text fontWeight="bold" fontSize="sm" color="gray.700">{item.studentName}</Text>
-                        <Text fontSize="2xs" color="gray.500">Roll: {item.rollNumber}</Text>
+                        <Text fontWeight="bold" fontSize="sm" color={textColor}>{item.studentName}</Text>
+                        <Text fontSize="2xs" color={textMuted}>Roll: {item.rollNumber}</Text>
                       </Box>
                       <Spacer />
                       <Stack align="flex-end" spacing={0.5}>
@@ -232,7 +254,7 @@ export default function FacultyDashboard() {
                           {item.status}
                         </Badge>
                         {item.status === 'Present' && (
-                          <Text fontSize="3xs" color="gray.400">{item.timeIn}</Text>
+                          <Text fontSize="3xs" color={textMuted}>{item.timeIn}</Text>
                         )}
                       </Stack>
                     </Flex>

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { message } from "antd";
+import { message, notification } from "antd";
 import "../Register.css";
 import { authAPI, teacherAPI } from "../../services/api";
 
@@ -187,11 +187,34 @@ const TeacherRegister = () => {
         password: formData.password
       });
 
-      message.success("Successfully registered... redirecting to login page");
-      setTimeout(() => navigate('/login'), 2000);
+      notification.success({
+        message: "Registration Successful",
+        description: "Your teacher profile and account have been successfully created! Redirecting to login...",
+        placement: "topRight",
+        duration: 4
+      });
+      setTimeout(() => navigate('/login'), 2500);
     } catch (err) {
       console.error(err);
-      setEmailError(err.message || "Teacher registration failed. Teacher ID or email might already exist.");
+      const errMsg = err.message || "Teacher registration failed. Please try again.";
+      setEmailError(errMsg);
+
+      // Categorize teacher registration errors for beautiful toasts
+      if (errMsg.includes("already exists") || errMsg.includes("already registered") || errMsg.includes("duplicated")) {
+        notification.warning({
+          message: "Registration Failed",
+          description: "A teacher account with this Teacher ID or Email already exists. Please verify and log in.",
+          placement: "topRight",
+          duration: 5
+        });
+      } else {
+        notification.error({
+          message: "Registration Error",
+          description: errMsg,
+          placement: "topRight",
+          duration: 4.5
+        });
+      }
     }
   };
 

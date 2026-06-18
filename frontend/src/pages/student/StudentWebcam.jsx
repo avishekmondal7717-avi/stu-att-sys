@@ -9,42 +9,39 @@ import './StudentDashboard.css';
 const { Option } = Select;
 
 export default function StudentWebcam() {
-  const { logs, setLogs, setPresentCount, setTotalClasses } = useOutletContext();
+  const { logs, setLogs, setPresentCount, setTotalClasses, activeSessions = [] } = useOutletContext();
 
   const [selectedClass, setSelectedClass] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
-  const [activeSessions, setActiveSessions] = useState([]);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
 
-  const fetchActiveSessions = async () => {
-    try {
-      const res = await attendanceAPI.getSessions();
-      const active = (res.sessions || []).filter(s => s.isActive);
-      setActiveSessions(active);
-      
-      // If currently scanning and class was closed, shut down camera
-      if (selectedClass) {
-        const code = selectedClass.split(':')[0];
-        if (!active.some(s => s.classCode === code)) {
-          message.warning("The attendance window for this class has been closed by the faculty.");
-          stopCamera();
-          setSelectedClass('');
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
+  // Monitor activeSessions to auto-close camera if selected class is disabled by teacher
   useEffect(() => {
-    fetchActiveSessions();
-    const interval = setInterval(fetchActiveSessions, 3000);
-    return () => clearInterval(interval);
-  }, [selectedClass]);
+    if (selectedClass) {
+      const code = selectedClass.split(':')[0];
+      if (!activeSessions.some(s => s.classCode === code)) {
+        message.warning("The attendance window for this class has been closed by the faculty.");
+        stopCamera();
+        setSelectedClass('');
+      }
+    }
+  }, [activeSessions, selectedClass]);
+
+  // Pre-select class from search query param if present
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const classCode = queryParams.get('class');
+    if (classCode && activeSessions.length > 0) {
+      const matched = activeSessions.find(s => s.classCode === classCode);
+      if (matched) {
+        setSelectedClass(`${matched.classCode}: ${matched.className}`);
+      }
+    }
+  }, [activeSessions]);
 
   const handleStartCamera = async () => {
     if (!selectedClass) {

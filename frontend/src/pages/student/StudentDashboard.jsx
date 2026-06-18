@@ -1,5 +1,5 @@
-import React from 'react';
-import { useOutletContext } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import {
   Container,
   VStack,
@@ -17,12 +17,15 @@ import {
   HStack,
   Spacer,
   Box,
-  SimpleGrid
+  SimpleGrid,
+  Button
 } from '@chakra-ui/react';
-import { CheckCircle2, XCircle, Clock, Award, Calendar } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Award, Calendar, Bell } from 'lucide-react';
+import { attendanceAPI } from '../../services/api';
 
 export default function StudentDashboard() {
-  const { logs = [], presentCount = 0, absentCount = 0, totalClasses = 0, theme } = useOutletContext() || {};
+  const navigate = useNavigate();
+  const { logs = [], presentCount = 0, absentCount = 0, totalClasses = 0, activeSessions = [], theme } = useOutletContext() || {};
   
   // Calculate attendance metrics
   const attendanceRate = totalClasses > 0 ? Math.round((presentCount / totalClasses) * 100) : 0;
@@ -54,6 +57,50 @@ export default function StudentDashboard() {
         <Heading size="lg" color={textPrimary} fontWeight="700" letterSpacing="-0.02em">Student Attendance Portal</Heading>
         <Text fontSize="md" color={textSecondary} mt={1}>View your active biometric verification logs and compliance parameters</Text>
       </Box>
+
+      {/* Active Session Notification */}
+      {activeSessions.length > 0 && (
+        <Card
+          bg="orange.500"
+          color="white"
+          borderRadius="xl"
+          border="1px solid"
+          borderColor="orange.400"
+          className="glow-animation"
+          mb={2}
+        >
+          <CardBody p={5}>
+            <Flex direction={{ base: 'column', sm: 'row' }} align="center" justify="space-between" gap={4}>
+              <HStack spacing={3} align="center">
+                <Box p={2.5} bg="rgba(255,255,255,0.2)" borderRadius="lg" display="flex" align="center" justify="center" className="pulse-icon">
+                  <Icon as={Bell} color="white" w={5} h={5} />
+                </Box>
+                <Box>
+                  <Text fontWeight="800" fontSize="md" letterSpacing="-0.010em">Active Attendance Session Live!</Text>
+                  <Text fontSize="sm" mt={0.5} color="orange.50">
+                    Faculty has opened the scanning window for: {activeSessions.map(s => s.className).join(', ')}.
+                  </Text>
+                </Box>
+              </HStack>
+              <Button
+                bg="white"
+                color="orange.600"
+                _hover={{ bg: 'orange.50', transform: 'translateY(-1px)' }}
+                _active={{ bg: 'white', transform: 'translateY(0)' }}
+                fontWeight="700"
+                size="md"
+                px={6}
+                borderRadius="lg"
+                boxShadow="sm"
+                transition="all 0.2s"
+                onClick={() => navigate('/student/webcam')}
+              >
+                Mark Attendance
+              </Button>
+            </Flex>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Welcome Banner Card */}
       <Card

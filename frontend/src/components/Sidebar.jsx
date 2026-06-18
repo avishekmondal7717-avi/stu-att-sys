@@ -11,7 +11,7 @@ const navItems = [
   { label: 'Add Student', icon: UserPlus, to: '/add-student' },
   { label: 'Attendance', icon: CalendarCheck, to: '/attendance' },
   { label: 'Reports', icon: FileText, to: '/reports' },
-  { label: 'Webcam', icon: Camera, to: '/webcam' },
+  { label: 'Attendance Window', icon: Camera, to: '/webcam' },
   { label: 'Settings', icon: Settings, to: '/settings' },
 ];
 
