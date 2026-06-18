@@ -1,5 +1,7 @@
 import sqlite3
 from pathlib import Path
+import hashlib
+import secrets
 
 DB_PATH = Path(__file__).parent / "attendance.db"
 
@@ -7,6 +9,29 @@ def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    hash_val = hashlib.pbkdf2_hmac(
+        'sha256', 
+        password.encode('utf-8'), 
+        salt.encode('utf-8'), 
+        100000
+    )
+    return f"{salt}:{hash_val.hex()}"
+
+def verify_password(password: str, hashed_password: str) -> bool:
+    try:
+        salt, hash_hex = hashed_password.split(":")
+        hash_val = hashlib.pbkdf2_hmac(
+            'sha256', 
+            password.encode('utf-8'), 
+            salt.encode('utf-8'), 
+            100000
+        )
+        return hash_val.hex() == hash_hex
+    except Exception:
+        return False
 
 def init_db():
     conn = get_db_connection()
@@ -19,7 +44,7 @@ def init_db():
         rollNumber TEXT UNIQUE NOT NULL,
         fullName TEXT NOT NULL,
         fatherName TEXT,
-        email TEXT,
+        email TEXT UNIQUE,
         contact TEXT,
         department TEXT,
         course TEXT,
@@ -28,6 +53,34 @@ def init_db():
         dob TEXT,
         status TEXT DEFAULT 'Active',
         photo TEXT
+    )
+    """)
+    
+    # Create teachers table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS teachers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        teacherId TEXT UNIQUE NOT NULL,
+        fullName TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        contact TEXT,
+        department TEXT NOT NULL,
+        status TEXT DEFAULT 'Active',
+        photo TEXT
+    )
+    """)
+    
+    # Create users table for unified authentication
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL,
+        referenceId TEXT,
+        fullName TEXT NOT NULL,
+        status TEXT DEFAULT 'Active',
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
     )
     """)
     
@@ -66,6 +119,60 @@ def init_db():
         INSERT INTO students (rollNumber, fullName, fatherName, email, contact, department, course, semester, gender, dob, status, photo)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, dummy_students)
+        
+    # Seed dummy teachers if the table is empty
+    cursor.execute("SELECT COUNT(*) FROM teachers")
+    if cursor.fetchone()[0] == 0:
+        dummy_teachers = [
+            ('TCH2024001', 'Dr. Sourav Ganguly', 'sourav.ganguly@email.com', '9876543230', 'Computer Science', 'Active', 'https://i.pravatar.cc/40?img=60'),
+            ('TCH2024002', 'Prof. Sachin Tendulkar', 'sachin.tendulkar@email.com', '9876543231', 'Information Technology', 'Active', 'https://i.pravatar.cc/40?img=61'),
+            ('TCH2024003', 'Dr. Rahul Dravid', 'rahul.dravid@email.com', '9876543232', 'Electronics & Communication', 'Active', 'https://i.pravatar.cc/40?img=62')
+        ]
+        cursor.executemany("""
+        INSERT INTO teachers (teacherId, fullName, email, contact, department, status, photo)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, dummy_teachers)
+
+    # Seed users for credentials if the table is empty
+    cursor.execute("SELECT COUNT(*) FROM users")
+    if cursor.fetchone()[0] == 0:
+        # Seed Admin
+        admin_pass = hash_password("admin@123")
+        cursor.execute("""
+        INSERT INTO users (email, password, role, referenceId, fullName, status)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """, ('admin@email.com', admin_pass, 'admin', 'ADMIN01', 'System Admin', 'Active'))
+        
+        # Seed Teachers
+        teacher_pass = hash_password("teacher@123")
+        teachers_to_user = [
+            ('sourav.ganguly@email.com', teacher_pass, 'teacher', 'TCH2024001', 'Dr. Sourav Ganguly', 'Active'),
+            ('sachin.tendulkar@email.com', teacher_pass, 'teacher', 'TCH2024002', 'Prof. Sachin Tendulkar', 'Active'),
+            ('rahul.dravid@email.com', teacher_pass, 'teacher', 'TCH2024003', 'Dr. Rahul Dravid', 'Active')
+        ]
+        cursor.executemany("""
+        INSERT INTO users (email, password, role, referenceId, fullName, status)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """, teachers_to_user)
+        
+        # Seed Students
+        student_pass = hash_password("student@123")
+        students_to_user = [
+            ('aarav.sharma@email.com', student_pass, 'student', 'CS2024001', 'Aarav Sharma', 'Active'),
+            ('priya.singh@email.com', student_pass, 'student', 'CS2024002', 'Priya Singh', 'Active'),
+            ('rahul.verma@email.com', student_pass, 'student', 'IT2024001', 'Rahul Verma', 'Active'),
+            ('anjali.kumari@email.com', student_pass, 'student', 'EC2024003', 'Anjali Kumari', 'Active'),
+            ('rohit.yadav@email.com', student_pass, 'student', 'ME2024002', 'Rohit Yadav', 'Active'),
+            ('neha.patel@email.com', student_pass, 'student', 'CS2024003', 'Neha Patel', 'Active'),
+            ('vikash.kumar@email.com', student_pass, 'student', 'CE2024001', 'Vikash Kumar', 'Active'),
+            ('sneha.rathi@email.com', student_pass, 'student', 'IT2024002', 'Sneha Rathi', 'Active'),
+            ('manish.gupta@email.com', student_pass, 'student', 'EE2024001', 'Manish Gupta', 'Active'),
+            ('karan.mehta@email.com', student_pass, 'student', 'CS2024004', 'Karan Mehta', 'Active')
+        ]
+        cursor.executemany("""
+        INSERT INTO users (email, password, role, referenceId, fullName, status)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """, students_to_user)
         
     # Seed dummy attendance logs if the table is empty
     cursor.execute("SELECT COUNT(*) FROM attendance")

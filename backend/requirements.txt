@@ -7,3 +7,4 @@ scikit-learn>=1.2.0
 pandas>=2.0.0
 streamlit>=1.22.0
 streamlit-autorefresh>=0.0.1
+pyjwt>=2.0.0

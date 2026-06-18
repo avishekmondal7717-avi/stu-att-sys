@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { studentAPI, authAPI } from "../services/api";
 import "./Register.css";
 
 const Register = () => {
@@ -27,6 +28,9 @@ const Register = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [dobError, setDobError] = useState("");
   const [studentIdError, setStudentIdError] = useState("");
+
+  const [createdStudentId, setCreatedStudentId] = useState(null);
+  const [createdStudentPayload, setCreatedStudentPayload] = useState(null);
 
   const getDOBBoundaries = () => {
     const today = new Date();
@@ -115,7 +119,19 @@ const Register = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const simulateEmailVerification = async () => {
+    try {
+      const updatedPayload = { ...createdStudentPayload, status: "Active" };
+      await studentAPI.update(createdStudentId, updatedPayload);
+      localStorage.removeItem(`pending_verification_${formData.email}`);
+      setSuccessMessage("Email verified successfully! You can now log in.");
+    } catch (err) {
+      console.error(err);
+      setEmailError("Simulation verification failed.");
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const emailErr = validateEmail(formData.email);
@@ -139,8 +155,34 @@ const Register = () => {
       return;
     }
 
-    console.log("Registration data:", formData, profilePhoto);
-    setSuccessMessage("Registration submitted successfully!");
+    try {
+      const payload = {
+        rollNumber: formData.studentId,
+        fullName: formData.fullName,
+        fatherName: "Raj Sharma",
+        email: formData.email,
+        contact: formData.phone,
+        department: formData.department,
+        course: "B.Tech",
+        semester: formData.semester.replace("Semester ", ""),
+        gender: formData.gender,
+        dob: formData.dateOfBirth,
+        status: "Pending Verification"
+      };
+
+      const response = await authAPI.registerStudent({
+        ...payload,
+        password: formData.password
+      });
+      setCreatedStudentId(response.id);
+      setCreatedStudentPayload(payload);
+      
+      localStorage.setItem(`pending_verification_${formData.email}`, "true");
+      setSuccessMessage("Registration submitted! A verification link has been sent to your email.");
+    } catch (err) {
+      console.error(err);
+      setEmailError("Registration failed. Student ID or email might already exist.");
+    }
   };
 
   return (
@@ -222,11 +264,33 @@ const Register = () => {
           </div>
 
           {successMessage && (
-            <div className="register-success-banner">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-              </svg>
-              <span>{successMessage}</span>
+            <div className="register-success-banner" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', padding: '12px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" style={{ flexShrink: 0 }}>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                </svg>
+                <span>{successMessage}</span>
+              </div>
+              {createdStudentId && localStorage.getItem(`pending_verification_${formData.email}`) && (
+                <button
+                  type="button"
+                  onClick={simulateEmailVerification}
+                  style={{
+                    marginTop: '4px',
+                    padding: '6px 12px',
+                    background: '#2563eb',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  Simulate Email Verification (Set Status to Active)
+                </button>
+              )}
             </div>
           )}
 

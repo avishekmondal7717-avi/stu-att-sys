@@ -88,16 +88,33 @@ class FaceEngine:
         - is_live: boolean indicating if anti-spoofing passed
         """
         h, w, _ = frame.shape
-        self.detector.setInputSize((w, h))
-        _, faces = self.detector.detect(frame)
+        
+        # Scale down if resolution is high to speed up YuNet detection
+        max_dim = 640
+        if w > max_dim or h > max_dim:
+            scale = max_dim / float(max(w, h))
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            resized = cv2.resize(frame, (new_w, new_h))
+            self.detector.setInputSize((new_w, new_h))
+            _, faces = self.detector.detect(resized)
+        else:
+            scale = 1.0
+            self.detector.setInputSize((w, h))
+            _, faces = self.detector.detect(frame)
         
         results = []
         if faces is not None:
             for face in faces:
-                box = face[0:4].astype(np.int32)
-                landmarks = face[4:14].astype(np.int32)
+                # Scale face array back to original frame size
+                face_scaled = face.copy()
+                if scale != 1.0:
+                    face_scaled[0:14] = face_scaled[0:14] / scale
+                    
+                box = face_scaled[0:4].astype(np.int32)
+                landmarks = face_scaled[4:14].astype(np.int32)
                 
-                # Crop the face safely within image boundaries
+                # Crop the face safely within original image boundaries
                 x, y, width, height = box
                 x1, y1 = max(0, x), max(0, y)
                 x2, y2 = min(w, x + width), min(h, y + height)
@@ -112,8 +129,8 @@ class FaceEngine:
                 min_dist = 1.0
                 
                 if self.knn is not None:
-                    # Crop, Align and Represent face
-                    aligned_face = self.recognizer.alignCrop(frame, face)
+                    # Crop, Align and Represent face using original high-res frame
+                    aligned_face = self.recognizer.alignCrop(frame, face_scaled)
                     feature = self.recognizer.feature(aligned_face).flatten()
                     
                     distances, indices = self.knn.kneighbors([feature], n_neighbors=1)

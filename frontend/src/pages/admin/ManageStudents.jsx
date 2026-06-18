@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Table, Button, Input, Select, Tag, Avatar, Space, Popconfirm, message, Modal, Form, Row, Col } from 'antd';
 import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/PageHeader';
-import { students as initialStudents, DEPARTMENTS, COURSES, SEMESTERS } from '../../data/dummyData';
+import { DEPARTMENTS, COURSES, SEMESTERS } from '../../data/dummyData';
+import { studentAPI } from '../../services/api';
 
 const { Option } = Select;
 
 export default function ManageStudents() {
-  const [data, setData] = useState(initialStudents);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
@@ -19,17 +21,42 @@ export default function ManageStudents() {
   const [editingStudent, setEditingStudent] = useState(null);
   const [form] = Form.useForm();
 
+  const fetchStudents = async () => {
+    setLoading(true);
+    try {
+      const res = await studentAPI.getAll();
+      setData(res.data || []);
+    } catch (err) {
+      console.error(err);
+      message.error(err.message || 'Failed to fetch students directory');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
   const filtered = data.filter((s) => {
-    const matchSearch = !search || s.fullName.toLowerCase().includes(search.toLowerCase()) || s.rollNumber.toLowerCase().includes(search.toLowerCase());
+    const sName = s.fullName || '';
+    const sRoll = s.rollNumber || '';
+    const matchSearch = !search || sName.toLowerCase().includes(search.toLowerCase()) || sRoll.toLowerCase().includes(search.toLowerCase());
     const matchDept = !filterDept || s.department === filterDept;
     const matchCourse = !filterCourse || s.course === filterCourse;
-    const matchSem = !filterSem || s.semester === filterSem;
+    const matchSem = !filterSem || String(s.semester) === String(filterSem);
     return matchSearch && matchDept && matchCourse && matchSem;
   });
 
-  const handleDelete = (id) => {
-    setData(data.filter((s) => s.id !== id));
-    message.success('Student record deleted successfully');
+  const handleDelete = async (id) => {
+    try {
+      await studentAPI.delete(id);
+      setData(data.filter((s) => s.id !== id));
+      message.success('Student record deleted successfully');
+    } catch (err) {
+      console.error(err);
+      message.error(err.message || 'Failed to delete student record');
+    }
   };
 
   const handleOpenAdd = () => {
@@ -45,30 +72,38 @@ export default function ManageStudents() {
   };
 
   const handleSave = () => {
-    form.validateFields().then((values) => {
-      if (editingStudent) {
-        // Edit existing student record
-        setData(data.map(s => s.id === editingStudent.id ? { ...s, ...values } : s));
-        message.success('Student record updated successfully');
-      } else {
-        // Add new student record
-        const newStudent = {
-          id: data.length > 0 ? Math.max(...data.map(s => s.id)) + 1 : 1,
-          photo: `https://i.pravatar.cc/40?img=${Math.floor(Math.random() * 70)}`,
-          status: 'Active',
-          ...values
-        };
-        setData([newStudent, ...data]);
-        message.success('New student record created successfully');
+    form.validateFields().then(async (values) => {
+      try {
+        if (editingStudent) {
+          // Edit existing student record
+          await studentAPI.update(editingStudent.id, { 
+            ...values, 
+            status: editingStudent.status,
+            semester: String(values.semester)
+          });
+          message.success('Student record updated successfully');
+        } else {
+          // Add new student record
+          await studentAPI.create({ 
+            ...values, 
+            status: 'Active',
+            semester: String(values.semester)
+          });
+          message.success('New student record created successfully');
+        }
+        setIsModalOpen(false);
+        fetchStudents();
+      } catch (err) {
+        console.error(err);
+        message.error(err.message || 'Failed to save student record');
       }
-      setIsModalOpen(false);
     });
   };
 
   const columns = [
     {
       title: 'Photo', key: 'photo', width: 70,
-      render: (_, r) => <Avatar src={r.photo} size={36}>{r.fullName[0]}</Avatar>,
+      render: (_, r) => <Avatar src={r.photo} size={36}>{r.fullName ? r.fullName[0] : 'S'}</Avatar>,
     },
     {
       title: 'Full Name', key: 'fullName',
@@ -132,6 +167,7 @@ export default function ManageStudents() {
           columns={columns}
           dataSource={filtered}
           rowKey="id"
+          loading={loading}
           pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (t, r) => `Showing ${r[0]} to ${r[1]} of ${t} students` }}
           size="middle"
         />
@@ -142,7 +178,7 @@ export default function ManageStudents() {
         {viewStudent && (
           <div style={{ padding: '8px 0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-              <Avatar src={viewStudent.photo} size={64}>{viewStudent.fullName[0]}</Avatar>
+              <Avatar src={viewStudent.photo} size={64}>{viewStudent.fullName ? viewStudent.fullName[0] : 'S'}</Avatar>
               <div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{viewStudent.fullName}</div>
                 <div style={{ color: '#666' }}>{viewStudent.rollNumber}</div>

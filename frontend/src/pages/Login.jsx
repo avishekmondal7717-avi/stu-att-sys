@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { studentAPI } from "../services/api";
 import "./Login.css";
 
 export default function Login() {
@@ -44,7 +45,7 @@ export default function Login() {
     return "";
   };
 
-  const handleSignIn = () => {
+  const handleSignIn = async () => {
     const eErr = validateEmail(email);
     const pErr = validatePassword(password);
     setEmailError(eErr);
@@ -59,10 +60,93 @@ export default function Login() {
         localStorage.removeItem("rememberedRole");
         localStorage.setItem("rememberMe", "false");
       }
-      if (role === "teacher") {
-        navigate("/dashboard");
-      } else {
-        navigate("/student/dashboard");
+
+      if (role === "student") {
+        try {
+          const res = await authAPI.login({ email, password, role: "student" });
+          localStorage.setItem("token", res.access_token);
+          localStorage.setItem("userRole", "student");
+          localStorage.setItem("userEmail", email);
+          localStorage.setItem("userFullName", res.user.fullName);
+          
+          // Fetch the student details to populate currentUser and check status
+          const studentsRes = await studentAPI.getAll({ department: "" });
+          const student = studentsRes.data.find(s => s.email === email);
+          if (!student) {
+            setEmailError("No student account found with this email. Please register first.");
+            localStorage.removeItem("token");
+            localStorage.removeItem("userRole");
+            localStorage.removeItem("userEmail");
+            localStorage.removeItem("userFullName");
+            return;
+          }
+          
+          if (student.status === "Pending Verification") {
+            setEmailError("Your email is not verified. Please verify your email first.");
+            localStorage.removeItem("token");
+            localStorage.removeItem("userRole");
+            localStorage.removeItem("userEmail");
+            localStorage.removeItem("userFullName");
+            return;
+          }
+          if (student.status === "Pending Approval") {
+            setEmailError("Your account is pending admin approval.");
+            localStorage.removeItem("token");
+            localStorage.removeItem("userRole");
+            localStorage.removeItem("userEmail");
+            localStorage.removeItem("userFullName");
+            return;
+          }
+
+          localStorage.setItem("currentUser", JSON.stringify(student));
+          navigate("/student/dashboard");
+        } catch (err) {
+          console.error(err);
+          setEmailError(err.message || "An error occurred during authentication.");
+        }
+      } else if (role === "teacher") {
+        try {
+          const res = await authAPI.login({ email, password, role: "teacher" });
+          localStorage.setItem("token", res.access_token);
+          localStorage.setItem("userRole", "teacher");
+          localStorage.setItem("userEmail", email);
+          localStorage.setItem("userFullName", res.user.fullName);
+          
+          // Fetch teacher details to check status
+          const teachersRes = await teacherAPI.getAll();
+          const teacher = teachersRes.data.find(t => t.email === email);
+          if (!teacher) {
+            setEmailError("No teacher account found with this email. Please register first.");
+            localStorage.removeItem("token");
+            localStorage.removeItem("userRole");
+            localStorage.removeItem("userEmail");
+            localStorage.removeItem("userFullName");
+            return;
+          }
+          
+          if (teacher.status === "Pending Verification") {
+            setEmailError("Your email is not verified. Please verify your email first.");
+            localStorage.removeItem("token");
+            localStorage.removeItem("userRole");
+            localStorage.removeItem("userEmail");
+            localStorage.removeItem("userFullName");
+            return;
+          }
+          if (teacher.status === "Pending Approval") {
+            setEmailError("Your account is pending admin approval.");
+            localStorage.removeItem("token");
+            localStorage.removeItem("userRole");
+            localStorage.removeItem("userEmail");
+            localStorage.removeItem("userFullName");
+            return;
+          }
+
+          localStorage.setItem("currentUser", JSON.stringify(teacher));
+          navigate("/dashboard");
+        } catch (err) {
+          console.error(err);
+          setEmailError(err.message || "An error occurred during authentication.");
+        }
       }
     }
   };

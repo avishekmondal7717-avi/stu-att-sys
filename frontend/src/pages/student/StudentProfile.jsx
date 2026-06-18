@@ -1,23 +1,39 @@
 import { Card, Avatar, Divider, Row, Col } from 'antd';
 import PageHeader from '../../components/common/PageHeader';
 
-const currentStudent = {
-  fullName: 'Aarav Sharma',
-  rollNumber: 'CS2024001',
-  department: 'Computer Science',
-  course: 'B.Tech',
-  semester: '4',
-  section: 'A',
-  email: 'aarav.sharma@email.com',
-  contact: '9876543210',
-  photo: 'https://i.pravatar.cc/100?img=11',
-  address: 'Salt Lake City, Sector V, Kolkata, West Bengal',
-  dob: '2003-04-15',
-  fatherName: 'Raj Sharma',
-  status: 'Active',
-};
-
 export default function StudentProfile() {
+  const currentUserStr = localStorage.getItem("currentUser");
+  const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+
+  const currentStudent = currentUser ? {
+    fullName: currentUser.fullName,
+    rollNumber: currentUser.rollNumber,
+    department: currentUser.department,
+    course: currentUser.course || 'B.Tech',
+    semester: currentUser.semester || '1',
+    section: currentUser.section || 'A',
+    email: currentUser.email || 'N/A',
+    contact: currentUser.contact || 'N/A',
+    photo: currentUser.photo || `https://i.pravatar.cc/100?img=${Math.abs(currentUser.fullName.charCodeAt(0)) % 70}`,
+    address: currentUser.address || 'N/A',
+    dob: currentUser.dob || 'N/A',
+    fatherName: currentUser.fatherName || 'N/A',
+    status: currentUser.status || 'Active',
+  } : {
+    fullName: 'Aarav Sharma',
+    rollNumber: 'CS2024001',
+    department: 'Computer Science',
+    course: 'B.Tech',
+    semester: '4',
+    section: 'A',
+    email: 'aarav.sharma@email.com',
+    contact: '9876543210',
+    photo: 'https://i.pravatar.cc/100?img=11',
+    address: 'Salt Lake City, Sector V, Kolkata, West Bengal',
+    dob: '2003-04-15',
+    fatherName: 'Raj Sharma',
+    status: 'Active',
+  };
   return (
     <div>
       <PageHeader title="My Profile" subtitle="Manage and view your official profile information" breadcrumbs={[{ label: 'My Profile' }]} />

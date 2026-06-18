@@ -1,19 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Table, Button, Input, Select, Tag, Avatar, Space, Popconfirm, message, Modal, Form, Row, Col } from 'antd';
 import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/PageHeader';
 import { DEPARTMENTS } from '../../data/dummyData';
+import { teacherAPI } from '../../services/api';
 
 const { Option } = Select;
 
-const initialTeachers = [
-  { id: 1, teacherId: 'TCH2024001', fullName: 'Dr. Sourav Ganguly', email: 'sourav.ganguly@email.com', contact: '9876543230', department: 'Computer Science', status: 'Active', photo: 'https://i.pravatar.cc/40?img=60' },
-  { id: 2, teacherId: 'TCH2024002', fullName: 'Prof. Sachin Tendulkar', email: 'sachin.tendulkar@email.com', contact: '9876543231', department: 'Information Technology', status: 'Active', photo: 'https://i.pravatar.cc/40?img=61' },
-  { id: 3, teacherId: 'TCH2024003', fullName: 'Dr. Rahul Dravid', email: 'rahul.dravid@email.com', contact: '9876543232', department: 'Electronics & Communication', status: 'Active', photo: 'https://i.pravatar.cc/40?img=62' },
-];
-
 export default function ManageTeachers() {
-  const [data, setData] = useState(initialTeachers);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [viewTeacher, setViewTeacher] = useState(null);
@@ -23,15 +19,38 @@ export default function ManageTeachers() {
   const [editingTeacher, setEditingTeacher] = useState(null);
   const [form] = Form.useForm();
 
+  const fetchTeachers = async () => {
+    setLoading(true);
+    try {
+      const res = await teacherAPI.getAll();
+      setData(res.data || []);
+    } catch (err) {
+      console.error(err);
+      message.error(err.message || 'Failed to fetch teachers directory');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTeachers();
+  }, []);
+
   const filtered = data.filter((t) => {
     const matchSearch = !search || t.fullName.toLowerCase().includes(search.toLowerCase()) || t.teacherId.toLowerCase().includes(search.toLowerCase());
     const matchDept = !filterDept || t.department === filterDept;
     return matchSearch && matchDept;
   });
 
-  const handleDelete = (id) => {
-    setData(data.filter((t) => t.id !== id));
-    message.success('Teacher record deleted successfully');
+  const handleDelete = async (id) => {
+    try {
+      await teacherAPI.delete(id);
+      setData(data.filter((t) => t.id !== id));
+      message.success('Teacher record deleted successfully');
+    } catch (err) {
+      console.error(err);
+      message.error(err.message || 'Failed to delete teacher record');
+    }
   };
 
   const handleOpenAdd = () => {
@@ -47,36 +66,36 @@ export default function ManageTeachers() {
   };
 
   const handleSave = () => {
-    form.validateFields().then((values) => {
+    form.validateFields().then(async (values) => {
       // Validate teacherId prefix
       if (!values.teacherId.startsWith('TCH')) {
         message.error("Teacher ID must start with 'TCH'");
         return;
       }
 
-      if (editingTeacher) {
-        // Edit existing record
-        setData(data.map(t => t.id === editingTeacher.id ? { ...t, ...values } : t));
-        message.success('Teacher record updated successfully');
-      } else {
-        // Add new record
-        const newTeacher = {
-          id: data.length > 0 ? Math.max(...data.map(t => t.id)) + 1 : 1,
-          photo: `https://i.pravatar.cc/40?img=${Math.floor(Math.random() * 30) + 50}`,
-          status: 'Active',
-          ...values
-        };
-        setData([newTeacher, ...data]);
-        message.success('New teacher record created successfully');
+      try {
+        if (editingTeacher) {
+          // Edit existing record
+          await teacherAPI.update(editingTeacher.id, { ...values, status: editingTeacher.status });
+          message.success('Teacher record updated successfully');
+        } else {
+          // Add new record
+          await teacherAPI.create({ ...values, status: 'Active' });
+          message.success('New teacher record created successfully');
+        }
+        setIsModalOpen(false);
+        fetchTeachers();
+      } catch (err) {
+        console.error(err);
+        message.error(err.message || 'Failed to save teacher record');
       }
-      setIsModalOpen(false);
     });
   };
 
   const columns = [
     {
       title: 'Photo', key: 'photo', width: 70,
-      render: (_, r) => <Avatar src={r.photo} size={36}>{r.fullName[0]}</Avatar>,
+      render: (_, r) => <Avatar src={r.photo} size={36}>{r.fullName ? r.fullName[0] : 'T'}</Avatar>,
     },
     {
       title: 'Full Name', key: 'fullName',
@@ -133,6 +152,7 @@ export default function ManageTeachers() {
           columns={columns}
           dataSource={filtered}
           rowKey="id"
+          loading={loading}
           pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (t, r) => `Showing ${r[0]} to ${r[1]} of ${t} teachers` }}
           size="middle"
         />
@@ -143,7 +163,7 @@ export default function ManageTeachers() {
         {viewTeacher && (
           <div style={{ padding: '8px 0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-              <Avatar src={viewTeacher.photo} size={64}>{viewTeacher.fullName[0]}</Avatar>
+              <Avatar src={viewTeacher.photo} size={64}>{viewTeacher.fullName ? viewTeacher.fullName[0] : 'T'}</Avatar>
               <div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{viewTeacher.fullName}</div>
                 <div style={{ color: '#666' }}>{viewTeacher.teacherId}</div>

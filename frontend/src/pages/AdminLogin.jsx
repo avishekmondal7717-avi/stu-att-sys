@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./AdminLogin.css";
+import { authAPI } from "../services/api";
 
 export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
@@ -40,22 +41,32 @@ export default function AdminLogin() {
     return "";
   };
 
-  const handleAdminSignIn = () => {
+  const handleAdminSignIn = async () => {
     const eErr = validateEmail(email);
     const pErr = validatePassword(password);
     setEmailError(eErr);
     setPasswordError(pErr);
     if (!eErr && !pErr) {
-      if (rememberMe) {
-        localStorage.setItem("rememberedAdminEmail", email);
-        localStorage.setItem("rememberAdminMe", "true");
-      } else {
-        localStorage.removeItem("rememberedAdminEmail");
-        localStorage.setItem("rememberAdminMe", "false");
+      try {
+        const res = await authAPI.login({ email, password, role: "admin" });
+        
+        localStorage.setItem("token", res.access_token);
+        localStorage.setItem("userRole", res.user.role);
+        localStorage.setItem("userEmail", res.user.email);
+        localStorage.setItem("userFullName", res.user.fullName);
+
+        if (rememberMe) {
+          localStorage.setItem("rememberedAdminEmail", email);
+          localStorage.setItem("rememberAdminMe", "true");
+        } else {
+          localStorage.removeItem("rememberedAdminEmail");
+          localStorage.setItem("rememberAdminMe", "false");
+        }
+        navigate("/admin/dashboard");
+      } catch (err) {
+        console.error(err);
+        setPasswordError(err.message || "Failed to sign in. Please check your credentials.");
       }
-      // Store admin role
-      localStorage.setItem("role", "admin");
-      navigate("/admin/dashboard");
     }
   };
 

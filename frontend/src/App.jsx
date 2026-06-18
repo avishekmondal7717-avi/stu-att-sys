@@ -93,6 +93,21 @@ function AdminLayout() {
 }
 
 
+function ProtectedRoute({ allowedRoles }) {
+  const role = localStorage.getItem("userRole");
+  const email = localStorage.getItem("userEmail");
+
+  if (!email || !role) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Outlet />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -105,39 +120,44 @@ export default function App() {
         <Route path="/admin-login" element={<AdminLogin />} />
         
         {/* Student Routes */}
-        <Route element={<StudentLayout />}>
-          <Route path="/student/dashboard" element={<StudentDashboard />} />
-          <Route path="/student/webcam" element={<StudentWebcam />} />
-          <Route path="/student/logs" element={<StudentLogs />} />
-          <Route path="/student/profile" element={<StudentProfile />} />
+        <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
+          <Route element={<StudentLayout />}>
+            <Route path="/student/dashboard" element={<StudentDashboard />} />
+            <Route path="/student/webcam" element={<StudentWebcam />} />
+            <Route path="/student/logs" element={<StudentLogs />} />
+            <Route path="/student/profile" element={<StudentProfile />} />
+          </Route>
         </Route>
 
         {/* Teacher Routes */}
-        <Route element={<TeacherLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/students" element={<StudentList />} />
-          <Route path="/students/list" element={<StudentList />} />
-          <Route path="/add-student" element={<AddStudent />} />
-          <Route path="/students/add" element={<AddStudent />} />
-          <Route path="/students/edit/:id" element={<AddStudent />} />
-          <Route path="/attendance" element={<AttendanceTable />} />
-          <Route path="/attendance/table" element={<AttendanceTable />} />
-          <Route path="/attendance/mark" element={<MarkAttendance />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/webcam" element={<Webcam />} />
-          <Route path="/settings" element={<Settings />} />
+        <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
+          <Route element={<TeacherLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/students" element={<StudentList />} />
+            <Route path="/students/list" element={<StudentList />} />
+            <Route path="/add-student" element={<AddStudent />} />
+            <Route path="/students/add" element={<AddStudent />} />
+            <Route path="/students/edit/:id" element={<AddStudent />} />
+            <Route path="/attendance" element={<AttendanceTable />} />
+            <Route path="/attendance/table" element={<AttendanceTable />} />
+            <Route path="/attendance/mark" element={<MarkAttendance />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/webcam" element={<Webcam />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
         </Route>
 
         {/* Admin Routes */}
-        <Route element={<AdminLayout />}>
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/students" element={<AdminManageStudents />} />
-          <Route path="/admin/teachers" element={<AdminManageTeachers />} />
-          <Route path="/admin/analytics" element={<AdminAnalytics />} />
-          <Route path="/admin/settings" element={<AdminSettings />} />
+        <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+          <Route element={<AdminLayout />}>
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/students" element={<AdminManageStudents />} />
+            <Route path="/admin/teachers" element={<AdminManageTeachers />} />
+            <Route path="/admin/analytics" element={<AdminAnalytics />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+          </Route>
         </Route>
       </Routes>
-
     </BrowserRouter>
   );
 }

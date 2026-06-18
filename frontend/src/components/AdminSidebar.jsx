@@ -44,7 +44,13 @@ export default function AdminSidebar() {
         ))}
       </nav>
 
-      <button className="nav-item logout-btn" onClick={() => navigate('/login')}>
+      <button className="nav-item logout-btn" onClick={() => {
+        localStorage.removeItem("userRole");
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("currentUser");
+        localStorage.removeItem("role");
+        navigate('/login');
+      }}>
         <LogOut size={20} />
         <span>Logout</span>
       </button>

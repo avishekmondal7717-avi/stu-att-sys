@@ -14,6 +14,11 @@ const mockChartData = [
 export default function StudentDashboard() {
   const { presentCount, absentCount, totalClasses } = useOutletContext();
   const attendanceRate = Math.round((presentCount / totalClasses) * 100);
+  
+  const currentUserStr = localStorage.getItem("currentUser");
+  const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+  const fullName = currentUser ? currentUser.fullName : (localStorage.getItem("userFullName") || "Student");
+  const avatarSrc = currentUser && currentUser.photo ? currentUser.photo : `https://i.pravatar.cc/100?img=${Math.abs(fullName.charCodeAt(0)) % 70}`;
 
   return (
     <div>
@@ -21,9 +26,9 @@ export default function StudentDashboard() {
 
       <div className="welcome-banner" style={{ margin: '0 0 24px 0' }}>
         <div className="welcome-banner-left">
-          <Avatar src="https://i.pravatar.cc/100?img=11" size={72} style={{ border: '3px solid #fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+          <Avatar src={avatarSrc} size={72} style={{ border: '3px solid #fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
           <div>
-            <h1>Welcome Back, Aarav Sharma!</h1>
+            <h1>Welcome Back, {fullName}!</h1>
             <p>You have a solid attendance rate. Keep attending classes to maintain it!</p>
           </div>
         </div>

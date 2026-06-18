@@ -27,7 +27,7 @@ class FaceServiceWrapper:
         """
         Scans a single frame from the browser.
         Returns a list of detected face metadata:
-        [{"box": [x,y,w,h], "name": name, "is_live": is_live, "distance": dist}]
+        [{"box": [x,y,w,h], "name": name, "is_live": is_live, "liveness_status": liveness_status, "distance": dist}]
         """
         try:
             frame = self.decode_base64_image(b64_frame)
@@ -45,6 +45,7 @@ class FaceServiceWrapper:
                 dist = face["distance"]
                 
                 # Run liveness tracking across frames
+                liveness_status = "unknown"
                 if name != "Unknown":
                     if name not in self.yaw_history:
                         self.yaw_history[name] = []
@@ -52,15 +53,30 @@ class FaceServiceWrapper:
                     if len(self.yaw_history[name]) > 30:
                         self.yaw_history[name].pop(0)
                         
-                    if len(self.yaw_history[name]) >= 15:
+                    if len(self.yaw_history[name]) >= 5:
                         variance = float(np.var(self.yaw_history[name]))
                         if variance < 1e-5:
                             is_live = False
+                            liveness_status = "spoof"
+                        else:
+                            if is_live: # If texture check also passed
+                                is_live = True
+                                liveness_status = "live"
+                            else:
+                                is_live = False
+                                liveness_status = "spoof"
+                    else:
+                        is_live = False
+                        liveness_status = "verifying"
+                else:
+                    is_live = False
+                    liveness_status = "unknown"
                             
                 results.append({
                     "box": box, # [x, y, w, h]
                     "name": name,
                     "is_live": bool(is_live),
+                    "liveness_status": liveness_status,
                     "distance": float(dist)
                 })
             return results

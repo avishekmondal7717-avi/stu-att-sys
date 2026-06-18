@@ -109,8 +109,21 @@ const Webcam = () => {
           const is_live = face.is_live;
           
           let color = '#f59e0b'; // unknown: Orange
+          let text = name;
           if (name !== 'Unknown') {
-            color = is_live ? '#10b981' : '#ef4444'; // live: Green, spoof: Red
+            if (face.liveness_status === 'live') {
+              color = '#10b981'; // Green
+              text = name;
+            } else if (face.liveness_status === 'spoof') {
+              color = '#ef4444'; // Red
+              text = `SPOOF: ${name}`;
+            } else if (face.liveness_status === 'verifying') {
+              color = '#3b82f6'; // Blue
+              text = `Verifying: ${name}`;
+            } else {
+              color = is_live ? '#10b981' : '#ef4444';
+              text = !is_live ? `SPOOF: ${name}` : name;
+            }
           }
 
           // Draw bounding box
@@ -121,7 +134,6 @@ const Webcam = () => {
           // Draw label background
           ctx.fillStyle = color;
           ctx.font = 'bold 16px sans-serif';
-          const text = !is_live && name !== 'Unknown' ? `SPOOF: ${name}` : name;
           const textWidth = ctx.measureText(text).width;
           ctx.fillRect(x - 1, y - 28, textWidth + 12, 28);
 

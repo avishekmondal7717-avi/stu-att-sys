@@ -119,10 +119,27 @@ export default function StudentWebcam() {
           const [x, y, w, h] = face.box;
           const name = face.name;
           const is_live = face.is_live;
+          const identity_verified = face.identity_verified !== false;
           
           let color = '#f59e0b'; // unknown
+          let text = name;
           if (name !== 'Unknown') {
-            color = is_live ? '#10b981' : '#ef4444'; // live: green, spoof: red
+            if (face.liveness_status === 'live' && identity_verified) {
+              color = '#10b981'; // Green
+              text = name;
+            } else if (face.liveness_status === 'spoof') {
+              color = '#ef4444'; // Red
+              text = `SPOOF: ${name}`;
+            } else if (face.liveness_status === 'verifying') {
+              color = '#3b82f6'; // Blue
+              text = `Verifying: ${name}`;
+            } else if (!identity_verified) {
+              color = '#ef4444'; // Red
+              text = `MISMATCH: ${name.replace('Mismatch: ', '')}`;
+            } else {
+              color = is_live ? '#10b981' : '#ef4444';
+              text = !is_live ? `SPOOF: ${name}` : name;
+            }
           }
 
           // Draw bounding box
@@ -133,7 +150,6 @@ export default function StudentWebcam() {
           // Draw label background
           ctx.fillStyle = color;
           ctx.font = 'bold 16px sans-serif';
-          const text = !is_live && name !== 'Unknown' ? `SPOOF: ${name}` : name;
           const textWidth = ctx.measureText(text).width;
           ctx.fillRect(x - 1, y - 28, textWidth + 12, 28);
 
@@ -141,8 +157,16 @@ export default function StudentWebcam() {
           ctx.fillStyle = '#ffffff';
           ctx.fillText(text, x + 6, y - 8);
 
+          // Handle identity mismatch
+          if (!identity_verified) {
+            message.error(`Identity Mismatch: Scanned face is registered as ${name.replace('Mismatch: ', '')}, which does not match your profile.`);
+            stopCamera();
+            setSelectedClass('');
+            return;
+          }
+
           // Auto mark if recognized and live
-          if (name !== 'Unknown' && is_live) {
+          if (name !== 'Unknown' && is_live && identity_verified) {
             // Check if already marked for this class session in local UI state
             const classCode = selectedClass.split(':')[0];
             const todayStr = new Date().toISOString().split('T')[0];

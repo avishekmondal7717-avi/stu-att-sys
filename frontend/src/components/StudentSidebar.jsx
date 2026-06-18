@@ -43,7 +43,12 @@ export default function StudentSidebar() {
         ))}
       </nav>
 
-      <button className="nav-item logout-btn" onClick={() => navigate('/login')}>
+      <button className="nav-item logout-btn" onClick={() => {
+        localStorage.removeItem("userRole");
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("currentUser");
+        navigate('/login');
+      }}>
         <LogOut size={20} />
         <span>Logout</span>
       </button>
