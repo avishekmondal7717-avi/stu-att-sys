@@ -53,6 +53,7 @@ const Register = () => {
     if (!formData.semester) newErrors.semester = "Semester is required.";
     if (!formData.gender) newErrors.gender = "Gender is required.";
     if (!formData.dateOfBirth) newErrors.dateOfBirth = "Date of Birth is required.";
+    if (!formData.address) newErrors.address = "Home Address is required.";
     if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters.";
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "Passwords do not match.";
 
@@ -142,6 +143,7 @@ const Register = () => {
         semester: formData.semester.replace("Semester ", ""),
         gender: formData.gender,
         dob: formData.dateOfBirth,
+        address: formData.address,
         status: "Active",
         photo: profilePhoto
       };
@@ -266,6 +268,12 @@ const Register = () => {
                     <input type="date" name="dateOfBirth" min={minDateStr} max={maxDateStr} value={formData.dateOfBirth} onChange={handleChange} required className={errors.dateOfBirth ? "input-error" : ""} />
                     {errors.dateOfBirth && <p className="error-msg">{errors.dateOfBirth}</p>}
                   </div>
+                </div>
+
+                <div className="register-field" style={{ width: '100%', marginBottom: '15px' }}>
+                  <label>Home Address</label>
+                  <input type="text" name="address" placeholder="Enter home address" value={formData.address} onChange={handleChange} required className={errors.address ? "input-error" : ""} />
+                  {errors.address && <p className="error-msg">{errors.address}</p>}
                 </div>
 
                 <div className="register-row">

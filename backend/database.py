@@ -56,10 +56,14 @@ def init_db():
         semester TEXT,
         gender TEXT,
         dob TEXT,
+        address TEXT,
         status TEXT DEFAULT 'Active',
         embedding VECTOR(128)
     )
     """)
+    
+    # Run migrations for existing DB instances
+    cursor.execute("ALTER TABLE students ADD COLUMN IF NOT EXISTS address TEXT;")
     
     # Create teachers table
     cursor.execute("""

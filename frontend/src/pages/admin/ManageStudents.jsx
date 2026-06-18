@@ -192,6 +192,7 @@ export default function ManageStudents() {
               ['Semester', viewStudent.semester],
               ['Gender', viewStudent.gender],
               ['Date of Birth', viewStudent.dob],
+              ['Home Address', viewStudent.address || 'N/A'],
             ].map(([label, val]) => (
               <div key={label} style={{ display: 'flex', borderBottom: '1px solid #f5f5f5', padding: '10px 0' }}>
                 <span style={{ width: 140, color: '#666', fontSize: 13 }}>{label}</span>
@@ -276,6 +277,14 @@ export default function ManageStudents() {
             <Col span={8}>
               <Form.Item name="dob" label="Date of Birth" rules={[{ required: true, message: 'Please enter DOB' }]}>
                 <Input placeholder="YYYY-MM-DD" />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Row gutter={16}>
+            <Col span={24}>
+              <Form.Item name="address" label="Home Address" rules={[{ required: true, message: 'Please enter address' }]}>
+                <Input.TextArea rows={2} placeholder="E.g. 123 Main Street, New York, NY 10001" />
               </Form.Item>
             </Col>
           </Row>

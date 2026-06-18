@@ -76,7 +76,7 @@ def startup_event():
     init_db()
 
 # JWT Config
-JWT_SECRET = "supersecretkeyforattendanceapp"
+JWT_SECRET = "supersecretkeyforattendanceapp2026"
 JWT_ALGORITHM = "HS256"
 
 from fastapi.security import OAuth2PasswordBearer
@@ -159,6 +159,7 @@ class StudentCreate(BaseModel):
     semester: Optional[str] = "1"
     gender: Optional[str] = "Male"
     dob: Optional[str] = ""
+    address: Optional[str] = ""
     status: Optional[str] = "Active"
 
 class ScanRequest(BaseModel):
@@ -189,6 +190,7 @@ class StudentRegisterRequest(BaseModel):
     semester: Optional[str] = "1"
     gender: Optional[str] = "Male"
     dob: Optional[str] = ""
+    address: Optional[str] = ""
     password: str
     photo: Optional[str] = ""  # base64 face scan from webcam
 
@@ -256,13 +258,13 @@ async def register_student(payload: StudentRegisterRequest):
 
         # Insert student record with pgvector embedding
         cursor.execute("""
-            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, status, embedding)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector)
+            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, address, status, embedding)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector)
             RETURNING id
         """, (
             payload.rollNumber, payload.fullName, payload.email, payload.contact,
             payload.department, payload.course, payload.semester, payload.gender, payload.dob,
-            "Active", str(embedding)
+            payload.address, "Active", str(embedding)
         ))
         
         # Get student DB ID
@@ -386,7 +388,8 @@ async def login(payload: LoginRequest):
                 "course": student_dict.get("course"),
                 "semester": student_dict.get("semester"),
                 "gender": student_dict.get("gender"),
-                "dob": student_dict.get("dob")
+                "dob": student_dict.get("dob"),
+                "address": student_dict.get("address")
             }
     elif user_dict["role"] == "teacher":
         cursor.execute('SELECT * FROM teachers WHERE email = %s', (user_dict["email"],))
@@ -491,13 +494,13 @@ async def create_student(student: StudentCreate):
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, address, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             student.rollNumber, student.fullName, student.email, student.contact,
             student.department, student.course, student.semester, student.gender, student.dob,
-            student.status
+            student.address, student.status
         ))
         
         # Get student DB ID
@@ -534,12 +537,12 @@ async def update_student(student_id: int, student: StudentCreate):
     
     cursor.execute("""
         UPDATE students
-        SET rollNumber=%s, fullName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, status=%s
+        SET rollNumber=%s, fullName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, address=%s, status=%s
         WHERE id=%s
     """, (
         student.rollNumber, student.fullName, student.email, student.contact,
         student.department, student.course, student.semester, student.gender, student.dob,
-        student.status, student_id
+        student.address, student.status, student_id
     ))
     
     # Also update user login profile

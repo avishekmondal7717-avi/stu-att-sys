@@ -27,20 +27,18 @@ import {
   HStack
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
-import { Users, CheckCircle, XCircle, Play } from 'lucide-react';
-import { dashboardAPI, reportsAPI } from '../../services/api';
+import { Play, Activity } from 'lucide-react';
+import { dashboardAPI } from '../../services/api';
 
 export default function FacultyDashboard() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  // Faculty session states
   const [department, setDepartment] = useState('');
   const [semester, setSemester] = useState('');
   const [subject, setSubject] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Stats and history states
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalPresent: 0,
@@ -91,7 +89,6 @@ export default function FacultyDashboard() {
       isClosable: true
     });
 
-    // Navigate to the webcam screen with routing parameters
     navigate(`/webcam?dept=${encodeURIComponent(department)}&sem=${encodeURIComponent(semester)}&sub=${encodeURIComponent(subject)}`);
   };
 
@@ -104,52 +101,16 @@ export default function FacultyDashboard() {
   }
 
   return (
-    <Box p={6} bg="gray.50" minH="100vh">
+    <Box p={6} bg="gray.50" minH="100vh" w="100%">
       {/* Title Header */}
       <Box mb={6}>
         <Heading size="lg" color="gray.800" fontWeight="bold">Faculty Dashboard</Heading>
         <Text color="gray.500" fontSize="sm">Launch scanning sessions and view live student attendance updates</Text>
       </Box>
 
-      {/* Quick Metrics Banner */}
-      <SimpleGrid columns={{ base: 1, sm: 2, md: 4 }} spacing={6} mb={8}>
-        <Card shadow="sm" borderTop="4px solid" borderColor="blue.500">
-          <CardBody>
-            <Stat>
-              <StatLabel color="gray.500">Total Students</StatLabel>
-              <StatNumber fontSize="2xl" fontWeight="bold" color="blue.600">{stats.totalStudents}</StatNumber>
-            </Stat>
-          </CardBody>
-        </Card>
-        <Card shadow="sm" borderTop="4px solid" borderColor="green.500">
-          <CardBody>
-            <Stat>
-              <StatLabel color="gray.500">Present Today</StatLabel>
-              <StatNumber fontSize="2xl" fontWeight="bold" color="green.600">{stats.totalPresent}</StatNumber>
-            </Stat>
-          </CardBody>
-        </Card>
-        <Card shadow="sm" borderTop="4px solid" borderColor="red.500">
-          <CardBody>
-            <Stat>
-              <StatLabel color="gray.500">Absent Today</StatLabel>
-              <StatNumber fontSize="2xl" fontWeight="bold" color="red.600">{stats.totalAbsent}</StatNumber>
-            </Stat>
-          </CardBody>
-        </Card>
-        <Card shadow="sm" borderTop="4px solid" borderColor="purple.500">
-          <CardBody>
-            <Stat>
-              <StatLabel color="gray.500">Attendance Rate</StatLabel>
-              <StatNumber fontSize="2xl" fontWeight="bold" color="purple.600">{stats.attendanceRate}%</StatNumber>
-            </Stat>
-          </CardBody>
-        </Card>
-      </SimpleGrid>
-
-      {/* Primary Split Workspace */}
-      <Grid templateColumns={{ base: '1fr', lg: '4fr 5fr' }} gap={8}>
-        {/* Left Column: Session Initializer Block */}
+      {/* Primary Grid Layout */}
+      <Grid templateColumns={{ base: "1fr", lg: "2fr 1fr" }} gap={6}>
+        {/* Left Panel: Session Setup Wizard */}
         <GridItem>
           <Card borderRadius="xl" shadow="md" bg="white">
             <CardHeader pb={0}>
@@ -161,7 +122,7 @@ export default function FacultyDashboard() {
                 <FormControl isRequired>
                   <FormLabel fontSize="sm" fontWeight="bold" color="gray.600">Select Department</FormLabel>
                   <Select
-                    placeholder="Select Department"
+                    placeholder="Choose Department"
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     focusBorderColor="blue.400"
@@ -178,7 +139,7 @@ export default function FacultyDashboard() {
                 <FormControl isRequired>
                   <FormLabel fontSize="sm" fontWeight="bold" color="gray.600">Select Semester</FormLabel>
                   <Select
-                    placeholder="Select Semester"
+                    placeholder="Choose Semester"
                     value={semester}
                     onChange={(e) => setSemester(e.target.value)}
                     focusBorderColor="blue.400"
@@ -197,7 +158,7 @@ export default function FacultyDashboard() {
                 <FormControl isRequired>
                   <FormLabel fontSize="sm" fontWeight="bold" color="gray.600">Subject / Course Module</FormLabel>
                   <Select
-                    placeholder="Select Course Module"
+                    placeholder="Choose Course Module"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     focusBorderColor="blue.400"
@@ -222,52 +183,59 @@ export default function FacultyDashboard() {
                   _hover={{ transform: 'translateY(-2px)', shadow: 'lg' }}
                   transition="all 0.2s"
                 >
-                  Launch Face Scanning Window
+                  Initialize Face Recognition Scanning
                 </Button>
               </Stack>
             </CardBody>
           </Card>
         </GridItem>
 
-        {/* Right Column: Real-time Attendance Stream */}
+        {/* Right Panel: Running Log of Matched Check-ins */}
         <GridItem>
-          <Card borderRadius="xl" shadow="md" bg="white" minH="420px">
+          <Card borderRadius="xl" shadow="md" bg="white" h="100%">
             <CardHeader pb={2} display="flex" justifyContent="space-between" align="center">
               <Box>
-                <Heading size="md" color="gray.700">Real-Time Attendance Stream</Heading>
-                <Text fontSize="xs" color="gray.400">Continuous feed of verified biometric face scans</Text>
+                <Heading size="md" color="gray.700">Session Roster Log</Heading>
+                <Text fontSize="xs" color="gray.400">Real-time biometric matched check-ins</Text>
               </Box>
-              <Badge colorScheme="green" variant="solid" px={2} py={1} borderRadius="md" alignSelf="center">
+              <Badge colorScheme="green" variant="solid" px={2} py={1} borderRadius="md">
                 Live
               </Badge>
             </CardHeader>
-            <CardBody>
+            <CardBody overflowY="auto" maxH="480px">
               <Stack spacing={4}>
                 {stats.recentAttendance.length === 0 ? (
-                  <Flex h="280px" direction="column" align="center" justify="center" color="gray.400" gap={2}>
-                    <Users size={36} />
-                    <Text fontSize="sm">No attendance records registered today.</Text>
+                  <Flex h="250px" direction="column" align="center" justify="center" color="gray.400" gap={2}>
+                    <Activity size={32} />
+                    <Text fontSize="sm">Roster stream is currently empty.</Text>
                   </Flex>
                 ) : (
                   stats.recentAttendance.map((item, index) => (
-                    <Box key={index}>
-                      <Flex align="center" p={3} bg="gray.50" borderRadius="lg" borderLeft="4px solid" borderColor={item.status === 'Present' ? 'green.400' : 'red.400'} shadow="sm">
-                        <Avatar size="sm" name={item.studentName} bg={item.status === 'Present' ? 'green.600' : 'red.600'} color="white" mr={3} />
-                        <Box>
-                          <Text fontWeight="bold" fontSize="sm" color="gray.700">{item.studentName}</Text>
-                          <Text fontSize="2xs" color="gray.400">Roll: {item.rollNumber} • {item.department}</Text>
-                        </Box>
-                        <Spacer />
-                        <Stack align="flex-end" spacing={1}>
-                          <Badge colorScheme={item.status === 'Present' ? 'green' : 'red'}>
-                            {item.status}
-                          </Badge>
-                          {item.status === 'Present' && (
-                            <Text fontSize="3xs" color="gray.400">Verified via {item.markedBy} at {item.timeIn}</Text>
-                          )}
-                        </Stack>
-                      </Flex>
-                    </Box>
+                    <Flex key={index} align="center" p={3} bg="gray.50" borderRadius="lg" shadow="sm">
+                      {/* Avatar collection with semantic green/red presence rings as requested */}
+                      <Avatar
+                        size="sm"
+                        name={item.studentName}
+                        bg={item.status === 'Present' ? 'green.500' : 'red.500'}
+                        color="white"
+                        border="2px solid"
+                        borderColor={item.status === 'Present' ? 'green.400' : 'red.400'}
+                        mr={3}
+                      />
+                      <Box>
+                        <Text fontWeight="bold" fontSize="sm" color="gray.700">{item.studentName}</Text>
+                        <Text fontSize="2xs" color="gray.500">Roll: {item.rollNumber}</Text>
+                      </Box>
+                      <Spacer />
+                      <Stack align="flex-end" spacing={0.5}>
+                        <Badge colorScheme={item.status === 'Present' ? 'green' : 'red'} variant="subtle">
+                          {item.status}
+                        </Badge>
+                        {item.status === 'Present' && (
+                          <Text fontSize="3xs" color="gray.400">{item.timeIn}</Text>
+                        )}
+                      </Stack>
+                    </Flex>
                   ))
                 )}
               </Stack>
