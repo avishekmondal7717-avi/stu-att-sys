@@ -139,12 +139,5 @@ def init_db():
     conn.close()
 
 if __name__ == "__main__":
-    # Drop existing tables to recreate them with lowercase column names cleanly
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("DROP TABLE IF EXISTS students, teachers, users, attendance CASCADE;")
-    conn.commit()
-    conn.close()
-    
     init_db()
-    print("PostgreSQL Database recreated with lowercase columns and initialized successfully.")
+    print("Neon DB tables verified and initialized successfully.")

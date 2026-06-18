@@ -118,7 +118,7 @@ const AppLayout = ({ children }) => {
             </Badge>
             <Dropdown menu={userMenu} placement="bottomRight">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <Avatar src="https://i.pravatar.cc/32?img=1" size={32} />
+                <Avatar size={32} style={{ backgroundColor: '#1e40af', fontWeight: 700 }}>A</Avatar>
                 <span style={{ fontWeight: 600, fontSize: 14 }}>Admin</span>
                 <span style={{ fontSize: 10, color: '#999' }}>▼</span>
               </div>

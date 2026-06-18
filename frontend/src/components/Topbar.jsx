@@ -2,14 +2,9 @@ import { Menu, Bell, ChevronDown } from 'lucide-react';
 import './Topbar.css';
 
 export default function Topbar({ onToggleSidebar }) {
-  const currentUserStr = localStorage.getItem("currentUser");
-  const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
   const userFullName = localStorage.getItem("userFullName") || "User";
   const userRole = localStorage.getItem("userRole") || "Role";
-
-  const photoUrl = (currentUser && currentUser.photo)
-    ? currentUser.photo
-    : `https://i.pravatar.cc/36?img=${Math.abs(userFullName.charCodeAt(0)) % 70}`;
+  const initial = userFullName.charAt(0).toUpperCase();
 
   return (
     <header className="topbar">
@@ -24,11 +19,17 @@ export default function Topbar({ onToggleSidebar }) {
         </button>
 
         <div className="admin-profile">
-          <img
-            src={photoUrl}
-            alt="Profile"
+          <div
             className="admin-avatar"
-          />
+            style={{
+              width: 36, height: 36, borderRadius: '50%',
+              backgroundColor: '#1e40af', color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 700, fontSize: 15
+            }}
+          >
+            {initial}
+          </div>
           <span className="admin-name">
             {userFullName} ({userRole})
           </span>
@@ -37,4 +38,4 @@ export default function Topbar({ onToggleSidebar }) {
       </div>
     </header>
   );
-}
+}

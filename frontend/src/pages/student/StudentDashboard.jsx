@@ -18,7 +18,7 @@ export default function StudentDashboard() {
   const currentUserStr = localStorage.getItem("currentUser");
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
   const fullName = currentUser ? currentUser.fullName : (localStorage.getItem("userFullName") || "Student");
-  const avatarSrc = currentUser && currentUser.photo ? currentUser.photo : `https://i.pravatar.cc/100?img=${Math.abs(fullName.charCodeAt(0)) % 70}`;
+  const initial = fullName.charAt(0).toUpperCase();
 
   return (
     <div>
@@ -26,7 +26,7 @@ export default function StudentDashboard() {
 
       <div className="welcome-banner" style={{ margin: '0 0 24px 0' }}>
         <div className="welcome-banner-left">
-          <Avatar src={avatarSrc} size={72} style={{ border: '3px solid #fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+          <Avatar size={72} style={{ backgroundColor: '#1e40af', fontSize: 28, fontWeight: 700, border: '3px solid #fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>{initial}</Avatar>
           <div>
             <h1>Welcome Back, {fullName}!</h1>
             <p>You have a solid attendance rate. Keep attending classes to maintain it!</p>

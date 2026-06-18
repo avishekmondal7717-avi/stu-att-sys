@@ -1,4 +1,4 @@
-import os
+# Smart Attendance System — pgvector backend
 import psycopg2
 import jwt
 from datetime import datetime, timedelta
@@ -159,11 +159,7 @@ class StudentCreate(BaseModel):
     semester: Optional[str] = "1"
     gender: Optional[str] = "Male"
     dob: Optional[str] = ""
-    status: Optional[str] = "Pending Verification"
-    photo: Optional[str] = ""
-
-class FaceEnrollRequest(BaseModel):
-    images: List[str] # List of base64 image strings
+    status: Optional[str] = "Active"
 
 class ScanRequest(BaseModel):
     image: str # Base64 image string
@@ -194,7 +190,7 @@ class StudentRegisterRequest(BaseModel):
     gender: Optional[str] = "Male"
     dob: Optional[str] = ""
     password: str
-    photo: Optional[str] = ""
+    photo: Optional[str] = ""  # base64 face scan from webcam
 
 class TeacherRegisterRequest(BaseModel):
     teacherId: str
@@ -214,10 +210,12 @@ class TeacherCreate(BaseModel):
     department: str
     status: Optional[str] = "Active"
 
-# Helper: Convert dict to dict
+# Helper: Convert DB row dict to camelCase, stripping internal-only columns
 def row_to_dict(row):
     if not row: return None
     d = dict(row)
+    # Never leak raw embedding vectors to API responses
+    d.pop('embedding', None)
     mapping = {
         'rollnumber': 'rollNumber',
         'fullname': 'fullName',
@@ -388,8 +386,7 @@ async def login(payload: LoginRequest):
                 "course": student_dict.get("course"),
                 "semester": student_dict.get("semester"),
                 "gender": student_dict.get("gender"),
-                "dob": student_dict.get("dob"),
-                "photo": student_dict.get("photo")
+                "dob": student_dict.get("dob")
             }
     elif user_dict["role"] == "teacher":
         cursor.execute('SELECT * FROM teachers WHERE email = %s', (user_dict["email"],))
@@ -401,8 +398,7 @@ async def login(payload: LoginRequest):
                 "contact": teacher_dict.get("contact"),
                 "department": teacher_dict.get("department"),
                 "gender": teacher_dict.get("gender"),
-                "dob": teacher_dict.get("dob"),
-                "photo": teacher_dict.get("photo")
+                "dob": teacher_dict.get("dob")
             }
     conn.close()
     
@@ -685,27 +681,37 @@ async def delete_teacher(teacher_id: int):
     conn.close()
     return {"success": True}
 
-# ─── Face Biometrics Enrollment ────────────────────────────────
+# ─── Face Biometrics Enrollment (pgvector) ────────────────────
+class FaceEnrollRequest(BaseModel):
+    images: List[str]  # List of base64 image strings
+
 @app.post("/api/students/{student_id}/face-images", dependencies=[Depends(require_role(["admin", "teacher", "student"]))])
 async def enroll_student_faces(student_id: int, request: FaceEnrollRequest):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT rollNumber, fullName FROM students WHERE id = %s", (student_id,))
+    cursor.execute("SELECT id FROM students WHERE id = %s", (student_id,))
     student = cursor.fetchone()
-    conn.close()
-    
     if not student:
+        conn.close()
         raise HTTPException(status_code=404, detail="Student not found")
-        
-    roll_number = student["rollNumber"]
-    full_name = student["fullName"]
-    
-    registered_count = face_service.enroll_student_faces(roll_number, request.images)
-    
-    if registered_count == 0:
-        raise HTTPException(status_code=400, detail="Could not detect or register any faces from the uploaded images. Please ensure the camera capture has proper lighting and clear views.")
-        
-    return {"success": True, "samples_enrolled": registered_count}
+
+    # Extract the best embedding from the provided images
+    for b64_img in request.images:
+        frame = decode_base64_image(b64_img)
+        if frame is None:
+            continue
+        embedding, _, _ = extract_face_embedding(frame)
+        if embedding:
+            cursor.execute(
+                "UPDATE students SET embedding = %s::vector WHERE id = %s",
+                (str(embedding), student_id)
+            )
+            conn.commit()
+            conn.close()
+            return {"success": True, "samples_enrolled": 1}
+
+    conn.close()
+    raise HTTPException(status_code=400, detail="Could not detect any faces. Ensure proper lighting and a clear view.")
 
 # ─── Attendance Records ───────────────────────────────────────
 @app.get("/api/attendance", dependencies=[Depends(require_role(["admin", "teacher", "student"]))])

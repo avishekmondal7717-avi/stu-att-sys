@@ -79,7 +79,7 @@ const MarkAttendance = () => {
 
   const columns = [
     { title: '#', key: 'index', width: 50, render: (_, __, i) => i + 1 },
-    { title: 'Photo', key: 'photo', width: 70, render: (_, r) => <Avatar src={r.photo} size={32}>{r.studentName[0]}</Avatar> },
+    { title: 'Student', key: 'student', width: 70, render: (_, r) => <Avatar size={32} style={{ backgroundColor: '#1e40af' }}>{r.studentName ? r.studentName[0] : 'S'}</Avatar> },
     { title: 'Roll Number', dataIndex: 'rollNumber', key: 'rollNumber', width: 130 },
     { title: 'Student Name', dataIndex: 'studentName', key: 'studentName' },
     { title: 'Department', dataIndex: 'department', key: 'department' },

@@ -102,15 +102,14 @@ export default function ManageStudents() {
 
   const columns = [
     {
-      title: 'Photo', key: 'photo', width: 70,
-      render: (_, r) => <Avatar src={r.photo} size={36}>{r.fullName ? r.fullName[0] : 'S'}</Avatar>,
-    },
-    {
-      title: 'Full Name', key: 'fullName',
+      title: 'Student', key: 'fullName',
       render: (_, r) => (
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{r.fullName}</div>
-          <div style={{ color: '#999', fontSize: 12 }}>{r.email}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Avatar size={36} style={{ backgroundColor: '#1e40af' }}>{r.fullName ? r.fullName[0] : 'S'}</Avatar>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{r.fullName}</div>
+            <div style={{ color: '#999', fontSize: 12 }}>{r.email}</div>
+          </div>
         </div>
       ),
     },
@@ -178,7 +177,7 @@ export default function ManageStudents() {
         {viewStudent && (
           <div style={{ padding: '8px 0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-              <Avatar src={viewStudent.photo} size={64}>{viewStudent.fullName ? viewStudent.fullName[0] : 'S'}</Avatar>
+              <Avatar size={64} style={{ backgroundColor: '#1e40af', fontSize: 24 }}>{viewStudent.fullName ? viewStudent.fullName[0] : 'S'}</Avatar>
               <div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{viewStudent.fullName}</div>
                 <div style={{ color: '#666' }}>{viewStudent.rollNumber}</div>

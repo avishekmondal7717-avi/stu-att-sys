@@ -94,15 +94,14 @@ export default function ManageTeachers() {
 
   const columns = [
     {
-      title: 'Photo', key: 'photo', width: 70,
-      render: (_, r) => <Avatar src={r.photo} size={36}>{r.fullName ? r.fullName[0] : 'T'}</Avatar>,
-    },
-    {
-      title: 'Full Name', key: 'fullName',
+      title: 'Teacher', key: 'fullName',
       render: (_, r) => (
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{r.fullName}</div>
-          <div style={{ color: '#999', fontSize: 12 }}>{r.email}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Avatar size={36} style={{ backgroundColor: '#d97706' }}>{r.fullName ? r.fullName[0] : 'T'}</Avatar>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{r.fullName}</div>
+            <div style={{ color: '#999', fontSize: 12 }}>{r.email}</div>
+          </div>
         </div>
       ),
     },
@@ -163,7 +162,7 @@ export default function ManageTeachers() {
         {viewTeacher && (
           <div style={{ padding: '8px 0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-              <Avatar src={viewTeacher.photo} size={64}>{viewTeacher.fullName ? viewTeacher.fullName[0] : 'T'}</Avatar>
+              <Avatar size={64} style={{ backgroundColor: '#d97706', fontSize: 24 }}>{viewTeacher.fullName ? viewTeacher.fullName[0] : 'T'}</Avatar>
               <div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{viewTeacher.fullName}</div>
                 <div style={{ color: '#666' }}>{viewTeacher.teacherId}</div>

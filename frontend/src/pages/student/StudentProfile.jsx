@@ -14,22 +14,20 @@ export default function StudentProfile() {
     section: currentUser.section || 'A',
     email: currentUser.email || 'N/A',
     contact: currentUser.contact || 'N/A',
-    photo: currentUser.photo || `https://i.pravatar.cc/100?img=${Math.abs(currentUser.fullName.charCodeAt(0)) % 70}`,
     address: currentUser.address || 'N/A',
     dob: currentUser.dob || 'N/A',
     status: currentUser.status || 'Active',
   } : {
-    fullName: 'Aarav Sharma',
-    rollNumber: 'CS2024001',
-    department: 'Computer Science',
+    fullName: 'Student',
+    rollNumber: 'N/A',
+    department: 'N/A',
     course: 'B.Tech',
-    semester: '4',
+    semester: '1',
     section: 'A',
-    email: 'aarav.sharma@email.com',
-    contact: '9876543210',
-    photo: 'https://i.pravatar.cc/100?img=11',
-    address: 'Salt Lake City, Sector V, Kolkata, West Bengal',
-    dob: '2003-04-15',
+    email: 'N/A',
+    contact: 'N/A',
+    address: 'N/A',
+    dob: 'N/A',
     status: 'Active',
   };
   return (
@@ -39,7 +37,9 @@ export default function StudentProfile() {
       <Card style={{ borderRadius: 12, maxWidth: 800 }}>
         <Row gutter={[24, 24]} align="middle" style={{ marginBottom: 24 }}>
           <Col xs={24} sm={6} style={{ display: 'flex', justifyContent: 'center' }}>
-            <Avatar src={currentStudent.photo} size={100} style={{ border: '3px solid #3b5bdb', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+            <Avatar size={100} style={{ backgroundColor: '#1e40af', fontSize: 38, border: '3px solid #3b5bdb', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+              {currentStudent.fullName ? currentStudent.fullName[0] : 'S'}
+            </Avatar>
           </Col>
           <Col xs={24} sm={18}>
             <h2 style={{ margin: '0 0 4px 0', fontSize: 22, fontWeight: 700, color: '#1a202c' }}>{currentStudent.fullName}</h2>
