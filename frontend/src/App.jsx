@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { attendanceAPI } from './services/api';
 import Login from './pages/Login';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
@@ -59,10 +60,30 @@ function StudentLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   
   // Shared state for student attendance
-  const [logs, setLogs] = useState(initialStudentLogs);
-  const [presentCount, setPresentCount] = useState(34);
-  const [absentCount] = useState(6);
-  const [totalClasses, setTotalClasses] = useState(40);
+  const [logs, setLogs] = useState([]);
+  const [presentCount, setPresentCount] = useState(0);
+  const [absentCount, setAbsentCount] = useState(0);
+  const [totalClasses, setTotalClasses] = useState(0);
+
+  const fetchStudentData = async () => {
+    try {
+      const res = await attendanceAPI.getStudentAttendance();
+      const fetchedLogs = res.data || [];
+      setLogs(fetchedLogs);
+      
+      const present = fetchedLogs.filter(l => l.status === 'Present').length;
+      const absent = fetchedLogs.filter(l => l.status === 'Absent').length;
+      setPresentCount(present);
+      setAbsentCount(absent);
+      setTotalClasses(present + absent);
+    } catch (err) {
+      console.error("Failed to fetch student attendance data:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudentData();
+  }, []);
 
   return (
     <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
@@ -70,7 +91,7 @@ function StudentLayout() {
       <div className="main-area">
         <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} />
         <main className="page-content">
-          <Outlet context={{ logs, setLogs, presentCount, setPresentCount, absentCount, totalClasses, setTotalClasses }} />
+          <Outlet context={{ logs, setLogs, presentCount, setPresentCount, absentCount, totalClasses, setTotalClasses, fetchStudentData }} />
         </main>
       </div>
     </div>
@@ -93,26 +114,78 @@ function AdminLayout() {
 }
 
 
+function parseJwt(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      window.atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
 function ProtectedRoute({ allowedRoles }) {
+  const token = localStorage.getItem("token");
   const role = localStorage.getItem("userRole");
   const email = localStorage.getItem("userEmail");
 
-  if (!email || !role) {
+  if (!token || !email || !role) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const decoded = parseJwt(token);
+  if (!decoded) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("currentUser");
+    return <Navigate to="/login" replace />;
+  }
+
+  if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("currentUser");
     return <Navigate to="/login" replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(role)) {
+    if (role === "student") return <Navigate to="/student/dashboard" replace />;
+    if (role === "teacher") return <Navigate to="/dashboard" replace />;
+    if (role === "admin") return <Navigate to="/admin/dashboard" replace />;
     return <Navigate to="/login" replace />;
   }
 
   return <Outlet />;
 }
 
+function HomeRedirect() {
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("userRole");
+
+  if (token && role) {
+    const decoded = parseJwt(token);
+    if (decoded && decoded.exp * 1000 > Date.now()) {
+      if (role === "student") return <Navigate to="/student/dashboard" replace />;
+      if (role === "teacher") return <Navigate to="/dashboard" replace />;
+      if (role === "admin") return <Navigate to="/admin/dashboard" replace />;
+    }
+  }
+  return <Navigate to="/login" replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<HomeRedirect />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/register" element={<Register />} />

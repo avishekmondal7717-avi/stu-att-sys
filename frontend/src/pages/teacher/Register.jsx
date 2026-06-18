@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { message } from "antd";
 import "../Register.css";
 import { authAPI, teacherAPI } from "../../services/api";
 
 const TeacherRegister = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fullName: "",
     teacherId: "",
@@ -43,12 +46,12 @@ const TeacherRegister = () => {
 
   const validateEmail = (value) => {
     const localPart = value.split("@")[0];
-    const validDomains = ["@gmail.com", "@yahoo.com", "@outlook.com", "@hotmail.com"];
+    const validDomains = ["@gmail.com", "@yahoo.com", "@outlook.com", "@hotmail.com", "@email.com"];
     const hasValidDomain = validDomains.some((d) => value.endsWith(d));
 
     if (!value) return "Email is required.";
-    if (localPart.length < 6) return "Email must have at least 6 characters before @.";
-    if (!hasValidDomain) return "Email must end with @gmail.com, @yahoo.com, @outlook.com or @hotmail.com.";
+    if (localPart.length < 3) return "Email must have at least 3 characters before @.";
+    if (!hasValidDomain) return "Email must end with @gmail.com, @yahoo.com, @outlook.com, @hotmail.com, or @email.com.";
     return "";
   };
 
@@ -141,6 +144,11 @@ const TeacherRegister = () => {
       confirmPasswordErr = "Passwords do not match!";
     }
 
+    if (!profilePhoto) {
+      message.error("Profile photo is mandatory for AI face recognition training.");
+      return;
+    }
+
     if (emailErr || passwordErr || phoneErr || confirmPasswordErr || dobErr || teacherIdErr) {
       setEmailError(emailErr);
       setPasswordError(passwordErr);
@@ -161,18 +169,16 @@ const TeacherRegister = () => {
         department: formData.department,
         gender: formData.gender,
         dob: formData.dateOfBirth,
-        status: "Pending Verification"
+        status: "Active"
       };
 
-      const response = await authAPI.registerTeacher({
+      await authAPI.registerTeacher({
         ...payload,
         password: formData.password
       });
-      setCreatedTeacherId(response.id);
-      setCreatedTeacherPayload(payload);
 
-      localStorage.setItem(`pending_verification_${formData.email}`, "true");
-      setSuccessMessage("Teacher registration submitted! A verification link has been sent to your email.");
+      message.success("Successfully registered... redirecting to login page");
+      setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
       console.error(err);
       setEmailError(err.message || "Teacher registration failed. Teacher ID or email might already exist.");
@@ -257,36 +263,7 @@ const TeacherRegister = () => {
             <p>Register as a new teacher</p>
           </div>
 
-          {successMessage && (
-            <div className="register-success-banner" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', padding: '12px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" style={{ flexShrink: 0 }}>
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                </svg>
-                <span>{successMessage}</span>
-              </div>
-              {localStorage.getItem(`pending_verification_${formData.email}`) && (
-                <button
-                  type="button"
-                  onClick={simulateTeacherEmailVerification}
-                  style={{
-                    marginTop: '4px',
-                    padding: '6px 12px',
-                    background: '#2563eb',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  Simulate Email Verification (Set Status to Active)
-                </button>
-              )}
-            </div>
-          )}
+
 
           <form onSubmit={handleSubmit} className="register-form">
             {/* Row 1 */}

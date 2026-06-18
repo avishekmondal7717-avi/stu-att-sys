@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { message } from "antd";
 import "./AdminLogin.css";
 import { authAPI } from "../services/api";
 
@@ -14,21 +15,31 @@ export default function AdminLogin() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Redirect if already logged in
+    const token = localStorage.getItem("token");
+    const userRole = localStorage.getItem("userRole");
+    if (token && userRole) {
+      if (userRole === "student") navigate("/student/dashboard");
+      else if (userRole === "teacher") navigate("/dashboard");
+      else if (userRole === "admin") navigate("/admin/dashboard");
+      return;
+    }
+
     const savedEmail = localStorage.getItem("rememberedAdminEmail");
     const savedRememberMe = localStorage.getItem("rememberAdminMe") === "true";
     if (savedRememberMe) {
       setRememberMe(true);
       if (savedEmail) setEmail(savedEmail);
     }
-  }, []);
+  }, [navigate]);
 
   const validateEmail = (value) => {
     const localPart = value.split("@")[0];
-    const validDomains = ["@gmail.com", "@yahoo.com", "@outlook.com", "@hotmail.com"];
+    const validDomains = ["@gmail.com", "@yahoo.com", "@outlook.com", "@hotmail.com", "@email.com"];
     const hasValidDomain = validDomains.some((d) => value.endsWith(d));
     if (!value) return "Email is required.";
-    if (localPart.length < 6) return "Email must have at least 6 characters before @.";
-    if (!hasValidDomain) return "Email must end with @gmail.com, @yahoo.com, @outlook.com or @hotmail.com.";
+    if (localPart.length < 3) return "Email must have at least 3 characters before @.";
+    if (!hasValidDomain) return "Email must end with @gmail.com, @yahoo.com, @outlook.com, @hotmail.com, or @email.com.";
     return "";
   };
 
@@ -62,6 +73,8 @@ export default function AdminLogin() {
           localStorage.removeItem("rememberedAdminEmail");
           localStorage.setItem("rememberAdminMe", "false");
         }
+        
+        message.success("Login successful!");
         navigate("/admin/dashboard");
       } catch (err) {
         console.error(err);

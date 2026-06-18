@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Card, Button, Alert, message, Select } from 'antd';
+import { Card, Button, Alert, message, Select, Switch } from 'antd';
 import { VideoCameraOutlined, PoweroffOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/PageHeader';
 import { attendanceAPI } from '../../services/api';
@@ -10,11 +10,41 @@ const Webcam = () => {
   const [cameraActive, setCameraActive] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [logs, setLogs] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
+
+  const fetchSessions = async () => {
+    setLoadingSessions(true);
+    try {
+      const res = await attendanceAPI.getSessions();
+      setSessions(res.sessions || []);
+    } catch (err) {
+      console.error(err);
+      message.error("Failed to load attendance windows status.");
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+  const handleToggleSession = async (classCode, currentActive) => {
+    try {
+      await attendanceAPI.toggleSession({ classCode, active: !currentActive });
+      message.success(`Attendance window for ${classCode} is now ${!currentActive ? 'OPEN' : 'CLOSED'}`);
+      fetchSessions();
+    } catch (err) {
+      console.error(err);
+      message.error("Failed to toggle attendance window.");
+    }
+  };
 
   const startCamera = async () => {
     try {
@@ -214,25 +244,49 @@ const Webcam = () => {
           </div>
         </Card>
 
-        <Card title="Live Detection Log" style={{ borderRadius: 12, flex: 1, minWidth: 280 }}>
-          {logs.length === 0 ? (
-            <div style={{ color: '#999', textAlign: 'center', paddingTop: 40 }}>
-              No face detections logged in this session yet.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {logs.map((log, index) => (
-                <div key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #10b981' }}>
+        <div style={{ flex: 1, minWidth: 280, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <Card title={<span style={{ color: '#1e3a8a', fontWeight: 700 }}>Faculty Control: Attendance Windows</span>} style={{ borderRadius: 12 }}>
+            <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>Enable or disable live self-attendance scanning window for specific classes. Students will only be able to scan when a window is open.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {sessions.map((s) => (
+                <div key={s.classCode} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: s.isActive ? '#f0fdf4' : '#f8fafc', borderRadius: 8, borderLeft: `4px solid ${s.isActive ? '#10b981' : '#cbd5e1'}` }}>
                   <div>
-                    <strong style={{ display: 'block', fontSize: 14 }}>{log.name}</strong>
-                    <span style={{ fontSize: 12, color: '#666' }}>Status: {log.status}</span>
+                    <strong style={{ display: 'block', fontSize: 14 }}>{s.classCode}</strong>
+                    <span style={{ fontSize: 12, color: s.isActive ? '#16a34a' : '#666' }}>
+                      {s.isActive ? '● Window Open' : '○ Closed'}
+                    </span>
                   </div>
-                  <span style={{ fontSize: 12, color: '#999', alignSelf: 'center' }}>{log.time}</span>
+                  <Switch 
+                    checked={s.isActive} 
+                    onChange={() => handleToggleSession(s.classCode, s.isActive)} 
+                    checkedChildren="Open"
+                    unCheckedChildren="Off"
+                  />
                 </div>
               ))}
             </div>
-          )}
-        </Card>
+          </Card>
+
+          <Card title="Live Detection Log" style={{ borderRadius: 12 }}>
+            {logs.length === 0 ? (
+              <div style={{ color: '#999', textAlign: 'center', paddingTop: 40 }}>
+                No face detections logged in this session yet.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {logs.map((log, index) => (
+                  <div key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #10b981' }}>
+                    <div>
+                      <strong style={{ display: 'block', fontSize: 14 }}>{log.name}</strong>
+                      <span style={{ fontSize: 12, color: '#666' }}>Status: {log.status}</span>
+                    </div>
+                    <span style={{ fontSize: 12, color: '#999', alignSelf: 'center' }}>{log.time}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
     </div>
   );

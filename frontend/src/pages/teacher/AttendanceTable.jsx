@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Row, Col, Table, Tag, Button, Select, DatePicker, Input, message } from 'antd';
-import { SearchOutlined, FileExcelOutlined, CalendarOutlined, TeamOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Row, Col, Table, Tag, Button, Select, DatePicker, Input, message, Popconfirm } from 'antd';
+import { SearchOutlined, FileExcelOutlined, CalendarOutlined, TeamOutlined, CheckCircleOutlined, CloseCircleOutlined, DeleteOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import PageHeader from '../../components/common/PageHeader';
 import StatCard from '../../components/common/StatCard';
@@ -17,6 +17,9 @@ const AttendanceTable = () => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const userRole = localStorage.getItem('userRole');
+  const isAdmin = userRole === 'admin';
+
   const loadAttendance = async () => {
     setLoading(true);
     try {
@@ -27,6 +30,17 @@ const AttendanceTable = () => {
       message.error('Failed to load attendance records');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (recordId) => {
+    try {
+      await attendanceAPI.deleteRecord(recordId);
+      message.success('Attendance record deleted successfully');
+      loadAttendance();
+    } catch (err) {
+      console.error(err);
+      message.error('Failed to delete attendance record');
     }
   };
 
@@ -64,6 +78,36 @@ const AttendanceTable = () => {
     },
     { title: 'Marked By', dataIndex: 'markedBy', key: 'markedBy', width: 110 },
   ];
+
+  if (isAdmin) {
+    columns.push({
+      title: 'Action',
+      key: 'action',
+      width: 100,
+      render: (_, record) => {
+        const isAbsentRecord = String(record.id).startsWith('absent-');
+        return (
+          <Popconfirm
+            title="Delete this record?"
+            onConfirm={() => handleDelete(record.id)}
+            disabled={isAbsentRecord}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button 
+              type="text" 
+              danger 
+              icon={<DeleteOutlined />} 
+              size="small"
+              disabled={isAbsentRecord}
+            >
+              Delete
+            </Button>
+          </Popconfirm>
+        );
+      }
+    });
+  }
 
   return (
     <div>

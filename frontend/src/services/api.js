@@ -7,25 +7,45 @@ const BASE_URL = '/api';
 
 // Helper for HTTP requests
 const request = async (endpoint, options = {}) => {
-  const token = localStorage.getItem('token');
-  const headers = { 
-    'Content-Type': 'application/json', 
-    ...options.headers 
+  const token = localStorage.getItem("token");
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers
   };
-  
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
-    headers,
+    headers
   });
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.detail || `API Error: ${res.status}`);
+  if (res.status === 401 && !endpoint.includes('/auth/login')) {
+    // Session expired or invalid token - clear authentication data and redirect to login
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("currentUser");
+    
+    // Check to avoid redirection loop if already on login page
+    if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/admin-login')) {
+      window.location.href = '/login';
+    }
+    throw new Error("Session expired. Please log in again.");
   }
+
+  if (!res.ok) {
+    let errMsg = `API Error: ${res.status}`;
+    try {
+      const errJson = await res.json();
+      if (errJson && errJson.detail) {
+        errMsg = errJson.detail;
+      }
+    } catch (_) {}
+    throw new Error(errMsg);
+  }
+
   return res.json();
 };
 
@@ -129,10 +149,28 @@ export const attendanceAPI = {
   exportExcel: async (date) => {
     return request(`/attendance/export?date=${date}`);
   },
-  scanFace: async (base64Image) => {
+  scanFace: async (base64Image, classCode = null) => {
     return request('/attendance/scan', {
       method: 'POST',
-      body: JSON.stringify({ image: base64Image })
+      body: JSON.stringify({ image: base64Image, classCode })
+    });
+  },
+  getSessions: async () => {
+    return request('/attendance/sessions');
+  },
+  toggleSession: async (payload) => {
+    // payload: { classCode: string, active: boolean }
+    return request('/attendance/sessions/toggle', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+  getStudentAttendance: async () => {
+    return request('/student/attendance');
+  },
+  deleteRecord: async (id) => {
+    return request(`/attendance/${id}`, {
+      method: 'DELETE'
     });
   }
 };

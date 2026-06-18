@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Card, Button, Select, message } from 'antd';
+import { Card, Button, Select, message, Alert } from 'antd';
 import { VideoCameraOutlined, ScanOutlined, SmileOutlined, CloseOutlined } from '@ant-design/icons';
 import { useOutletContext } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader';
@@ -8,24 +8,43 @@ import './StudentDashboard.css';
 
 const { Option } = Select;
 
-const AVAILABLE_CLASSES = [
-  'CS-401: Data Structures & Algorithms',
-  'CS-402: Database Management Systems',
-  'CS-403: Operating Systems',
-  'CS-404: Formal Language & Automata',
-  'HU-401: Values & Ethics in Profession',
-];
-
 export default function StudentWebcam() {
   const { logs, setLogs, setPresentCount, setTotalClasses } = useOutletContext();
 
   const [selectedClass, setSelectedClass] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
+  const [activeSessions, setActiveSessions] = useState([]);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
+
+  const fetchActiveSessions = async () => {
+    try {
+      const res = await attendanceAPI.getSessions();
+      const active = (res.sessions || []).filter(s => s.isActive);
+      setActiveSessions(active);
+      
+      // If currently scanning and class was closed, shut down camera
+      if (selectedClass) {
+        const code = selectedClass.split(':')[0];
+        if (!active.some(s => s.classCode === code)) {
+          message.warning("The attendance window for this class has been closed by the faculty.");
+          stopCamera();
+          setSelectedClass('');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchActiveSessions();
+    const interval = setInterval(fetchActiveSessions, 3000);
+    return () => clearInterval(interval);
+  }, [selectedClass]);
 
   const handleStartCamera = async () => {
     if (!selectedClass) {
@@ -111,7 +130,8 @@ export default function StudentWebcam() {
     const base64Frame = tempCanvas.toDataURL('image/jpeg', 0.85);
 
     try {
-      const res = await attendanceAPI.scanFace(base64Frame);
+      const classCode = selectedClass.split(':')[0];
+      const res = await attendanceAPI.scanFace(base64Frame, classCode);
       ctx.clearRect(0, 0, width, height);
 
       if (res && res.faces && res.faces.length > 0) {
@@ -201,6 +221,12 @@ export default function StudentWebcam() {
       }
     } catch (err) {
       console.error(err);
+      const errMsg = err.message || '';
+      if (errMsg.includes('closed') || errMsg.includes('window')) {
+        message.error("Attendance window has been closed! Stopping scan.");
+        stopCamera();
+        setSelectedClass('');
+      }
     }
   };
 
@@ -219,18 +245,30 @@ export default function StudentWebcam() {
       <Card title={<span style={{ color: '#1e3a8a', fontWeight: 700 }}>Classroom Scan Viewport</span>} style={{ borderRadius: 12, maxWidth: 640, margin: '0 auto' }}>
         {!cameraActive ? (
           <div className="classroom-setup">
-            <p className="scanner-instruction">Select your current class schedule to initialize self face scanning:</p>
-            <Select
-              placeholder="Choose active classroom session"
-              size="large"
-              style={{ width: '100%', marginBottom: 20 }}
-              value={selectedClass || undefined}
-              onChange={setSelectedClass}
-            >
-              {AVAILABLE_CLASSES.map((c) => (
-                <Option key={c} value={c}>{c}</Option>
-              ))}
-            </Select>
+            {activeSessions.length === 0 ? (
+              <Alert
+                message="Self-Attendance Closed"
+                description="There are currently no active classroom attendance windows open by the faculty. Please ask your faculty to enable the session."
+                type="warning"
+                showIcon
+                style={{ marginBottom: 20 }}
+              />
+            ) : (
+              <>
+                <p className="scanner-instruction">Select your current class schedule to initialize self face scanning:</p>
+                <Select
+                  placeholder="Choose active classroom session"
+                  size="large"
+                  style={{ width: '100%', marginBottom: 20 }}
+                  value={selectedClass || undefined}
+                  onChange={setSelectedClass}
+                >
+                  {activeSessions.map((s) => (
+                    <Option key={s.classCode} value={`${s.classCode}: ${s.className}`}>{s.className}</Option>
+                  ))}
+                </Select>
+              </>
+            )}
 
             <div className="setup-placeholder" style={{ background: '#f8fafc', height: 320, borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, border: '2px dashed #cbd5e1' }}>
               <VideoCameraOutlined className="placeholder-cam-icon" style={{ fontSize: 48, color: '#94a3b8' }} />
@@ -242,7 +280,7 @@ export default function StudentWebcam() {
               size="large"
               icon={<VideoCameraOutlined />}
               onClick={handleStartCamera}
-              disabled={!selectedClass}
+              disabled={!selectedClass || activeSessions.length === 0}
               style={{ width: '100%', height: 48, background: '#1e3a8a', fontWeight: 600, borderRadius: 8, marginTop: 16 }}
             >
               Enter Classroom & Start Scan

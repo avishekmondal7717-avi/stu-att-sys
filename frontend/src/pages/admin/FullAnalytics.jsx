@@ -1,31 +1,36 @@
-import { useState } from 'react';
-import { Card, Row, Col, Progress, Select, Table, Button } from 'antd';
+import { useState, useEffect } from 'react';
+import { Card, Row, Col, Select, Table, Button, Spin, Alert } from 'antd';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
-import { FileDown, FileText } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import PageHeader from '../../components/common/PageHeader';
-import { departmentStats, attendanceOverview } from '../../data/dummyData';
+import { reportsAPI } from '../../services/api';
 
 const { Option } = Select;
-
-const courseStats = [
-  { name: 'B.Tech', count: 95, present: 88 },
-  { name: 'M.Tech', count: 15, present: 93 },
-  { name: 'BCA', count: 22, present: 74 },
-  { name: 'MCA', count: 18, present: 81 },
-];
-
-const COLORS = ['#d97706', '#f59e0b', '#fbbf24', '#fef3c7'];
-
-const peakDays = [
-  { date: 'Mon', count: 142 },
-  { date: 'Tue', count: 145 },
-  { date: 'Wed', count: 139 },
-  { date: 'Thu', count: 148 },
-  { date: 'Fri', count: 122 },
-];
+const COLORS = ['#d97706', '#f59e0b', '#fbbf24', '#fef3c7', '#fcd34d', '#fb923c'];
 
 export default function FullAnalytics() {
   const [selectedSemester, setSelectedSemester] = useState('All');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [data, setData] = useState({
+    departmentStats: [],
+    overview: []
+  });
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true);
+        const res = await reportsAPI.getSummary();
+        setData(res);
+      } catch (err) {
+        setError(err.message || 'Failed to fetch analytics data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAnalytics();
+  }, [selectedSemester]);
 
   const reportColumns = [
     { title: 'Department', dataIndex: 'name', key: 'name', fontWeight: 600 },
@@ -37,6 +42,14 @@ export default function FullAnalytics() {
       render: (pct) => <strong style={{ color: pct >= 75 ? '#10b981' : '#f59e0b' }}>{pct}%</strong>
     }
   ];
+
+  if (loading) {
+    return <div style={{ padding: 40, textAlign: 'center' }}><Spin size="large" /></div>;
+  }
+
+  if (error) {
+    return <Alert message="Error" description={error} type="error" showIcon style={{ margin: 20 }} />;
+  }
 
   return (
     <div>
@@ -57,19 +70,20 @@ export default function FullAnalytics() {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
         <Col xs={24} lg={8}>
-          <Card title="Course Distribution" style={{ borderRadius: 12, height: 360 }}>
+          <Card title="Department Distribution" style={{ borderRadius: 12, height: 360 }}>
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
                 <Pie
-                  data={courseStats}
+                  data={data.departmentStats}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
                   outerRadius={80}
                   paddingAngle={5}
-                  dataKey="count"
+                  dataKey="totalStudents"
+                  nameKey="name"
                 >
-                  {courseStats.map((entry, index) => (
+                  {data.departmentStats.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -81,14 +95,14 @@ export default function FullAnalytics() {
         </Col>
 
         <Col xs={24} lg={16}>
-          <Card title="Attendance Performance by Course" style={{ borderRadius: 12, height: 360 }}>
+          <Card title="Attendance Performance by Department" style={{ borderRadius: 12, height: 360 }}>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={courseStats}>
+              <BarChart data={data.departmentStats}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#eef0f6" vertical={false} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
                 <YAxis domain={[0, 100]} axisLine={false} tickLine={false} />
                 <Tooltip formatter={(v) => [`${v}%`, 'Average Attendance']} />
-                <Bar dataKey="present" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={50} />
+                <Bar dataKey="percentage" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={50} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
@@ -97,14 +111,14 @@ export default function FullAnalytics() {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
         <Col xs={24} lg={12}>
-          <Card title="Daily Attendance Flow" style={{ borderRadius: 12 }}>
+          <Card title="Daily Attendance Flow (%)" style={{ borderRadius: 12 }}>
             <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={peakDays}>
+              <LineChart data={data.overview}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#eef0f6" vertical={false} />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} />
-                <YAxis domain={[0, 150]} axisLine={false} tickLine={false} />
-                <Tooltip formatter={(v) => [`${v} Students`, 'Checkins']} />
-                <Line type="monotone" dataKey="count" stroke="#d97706" strokeWidth={3} dot={{ r: 6 }} />
+                <YAxis domain={[0, 100]} axisLine={false} tickLine={false} />
+                <Tooltip formatter={(v) => [`${v}%`, 'Attendance Rate']} />
+                <Line type="monotone" dataKey="value" stroke="#d97706" strokeWidth={3} dot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </Card>
@@ -112,7 +126,7 @@ export default function FullAnalytics() {
 
         <Col xs={24} lg={12}>
           <Card title="Department Statistics Summary" style={{ borderRadius: 12 }}>
-            <Table dataSource={departmentStats} columns={reportColumns} rowKey="name" pagination={false} size="small" />
+            <Table dataSource={data.departmentStats} columns={reportColumns} rowKey="name" pagination={false} size="small" />
           </Card>
         </Col>
       </Row>

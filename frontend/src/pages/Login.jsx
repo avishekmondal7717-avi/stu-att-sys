@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { studentAPI } from "../services/api";
+import { message } from "antd";
+import { authAPI } from "../services/api";
 import "./Login.css";
 
 export default function Login() {
@@ -15,6 +16,16 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Redirect if already logged in
+    const token = localStorage.getItem("token");
+    const userRole = localStorage.getItem("userRole");
+    if (token && userRole) {
+      if (userRole === "student") navigate("/student/dashboard");
+      else if (userRole === "teacher") navigate("/dashboard");
+      else if (userRole === "admin") navigate("/admin/dashboard");
+      return;
+    }
+
     const savedEmail = localStorage.getItem("rememberedEmail");
     const savedRole = localStorage.getItem("rememberedRole");
     const savedRememberMe = localStorage.getItem("rememberMe") === "true";
@@ -23,16 +34,16 @@ export default function Login() {
       if (savedEmail) setEmail(savedEmail);
       if (savedRole) setRole(savedRole);
     }
-  }, []);
+  }, [navigate]);
 
   const validateEmail = (value) => {
     const localPart = value.split("@")[0];
-    const validDomains = ["@gmail.com", "@yahoo.com", "@outlook.com", "@hotmail.com"];
+    const validDomains = ["@gmail.com", "@yahoo.com", "@outlook.com", "@hotmail.com", "@email.com"];
     const hasValidDomain = validDomains.some((d) => value.endsWith(d));
 
     if (!value) return "Email is required.";
-    if (localPart.length < 6) return "Email must have at least 6 characters before @.";
-    if (!hasValidDomain) return "Email must end with @gmail.com, @yahoo.com, @outlook.com or @hotmail.com.";
+    if (localPart.length < 3) return "Email must have at least 3 characters before @.";
+    if (!hasValidDomain) return "Email must end with @gmail.com, @yahoo.com, @outlook.com, @hotmail.com, or @email.com.";
     return "";
   };
 
@@ -61,92 +72,27 @@ export default function Login() {
         localStorage.setItem("rememberMe", "false");
       }
 
-      if (role === "student") {
-        try {
-          const res = await authAPI.login({ email, password, role: "student" });
-          localStorage.setItem("token", res.access_token);
-          localStorage.setItem("userRole", "student");
-          localStorage.setItem("userEmail", email);
-          localStorage.setItem("userFullName", res.user.fullName);
-          
-          // Fetch the student details to populate currentUser and check status
-          const studentsRes = await studentAPI.getAll({ department: "" });
-          const student = studentsRes.data.find(s => s.email === email);
-          if (!student) {
-            setEmailError("No student account found with this email. Please register first.");
-            localStorage.removeItem("token");
-            localStorage.removeItem("userRole");
-            localStorage.removeItem("userEmail");
-            localStorage.removeItem("userFullName");
-            return;
-          }
-          
-          if (student.status === "Pending Verification") {
-            setEmailError("Your email is not verified. Please verify your email first.");
-            localStorage.removeItem("token");
-            localStorage.removeItem("userRole");
-            localStorage.removeItem("userEmail");
-            localStorage.removeItem("userFullName");
-            return;
-          }
-          if (student.status === "Pending Approval") {
-            setEmailError("Your account is pending admin approval.");
-            localStorage.removeItem("token");
-            localStorage.removeItem("userRole");
-            localStorage.removeItem("userEmail");
-            localStorage.removeItem("userFullName");
-            return;
-          }
+      try {
+        const res = await authAPI.login({ email, password, role });
+        
+        localStorage.setItem("token", res.access_token);
+        localStorage.setItem("userRole", res.user.role);
+        localStorage.setItem("userEmail", res.user.email);
+        localStorage.setItem("userFullName", res.user.fullName);
+        localStorage.setItem("currentUser", JSON.stringify(res.user));
 
-          localStorage.setItem("currentUser", JSON.stringify(student));
+        message.success("Login successful!");
+
+        if (res.user.role === "student") {
           navigate("/student/dashboard");
-        } catch (err) {
-          console.error(err);
-          setEmailError(err.message || "An error occurred during authentication.");
-        }
-      } else if (role === "teacher") {
-        try {
-          const res = await authAPI.login({ email, password, role: "teacher" });
-          localStorage.setItem("token", res.access_token);
-          localStorage.setItem("userRole", "teacher");
-          localStorage.setItem("userEmail", email);
-          localStorage.setItem("userFullName", res.user.fullName);
-          
-          // Fetch teacher details to check status
-          const teachersRes = await teacherAPI.getAll();
-          const teacher = teachersRes.data.find(t => t.email === email);
-          if (!teacher) {
-            setEmailError("No teacher account found with this email. Please register first.");
-            localStorage.removeItem("token");
-            localStorage.removeItem("userRole");
-            localStorage.removeItem("userEmail");
-            localStorage.removeItem("userFullName");
-            return;
-          }
-          
-          if (teacher.status === "Pending Verification") {
-            setEmailError("Your email is not verified. Please verify your email first.");
-            localStorage.removeItem("token");
-            localStorage.removeItem("userRole");
-            localStorage.removeItem("userEmail");
-            localStorage.removeItem("userFullName");
-            return;
-          }
-          if (teacher.status === "Pending Approval") {
-            setEmailError("Your account is pending admin approval.");
-            localStorage.removeItem("token");
-            localStorage.removeItem("userRole");
-            localStorage.removeItem("userEmail");
-            localStorage.removeItem("userFullName");
-            return;
-          }
-
-          localStorage.setItem("currentUser", JSON.stringify(teacher));
+        } else if (res.user.role === "teacher") {
           navigate("/dashboard");
-        } catch (err) {
-          console.error(err);
-          setEmailError(err.message || "An error occurred during authentication.");
+        } else if (res.user.role === "admin") {
+          navigate("/admin/dashboard");
         }
+      } catch (err) {
+        console.error(err);
+        setEmailError(err.message || "An error occurred during authentication.");
       }
     }
   };

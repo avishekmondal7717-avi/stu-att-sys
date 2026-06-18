@@ -44,8 +44,10 @@ export default function StudentSidebar() {
       </nav>
 
       <button className="nav-item logout-btn" onClick={() => {
+        localStorage.removeItem("token");
         localStorage.removeItem("userRole");
         localStorage.removeItem("userEmail");
+        localStorage.removeItem("userFullName");
         localStorage.removeItem("currentUser");
         navigate('/login');
       }}>
