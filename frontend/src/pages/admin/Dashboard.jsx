@@ -28,7 +28,7 @@ import {
   Flex
 } from '@chakra-ui/react';
 import { RefreshCw } from 'lucide-react';
-import { dashboardAPI, teacherAPI, adminAPI } from '../../services/api';
+import { dashboardAPI, teacherAPI, adminAPI, studentAPI } from '../../services/api';
 
 
 export default function AdminDashboard() {
@@ -37,27 +37,37 @@ export default function AdminDashboard() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [masterRoster, setMasterRoster] = useState([]);
   const toast = useToast();
-
-  // Master Roster data for the table as requested
-  const [masterRoster, setMasterRoster] = useState([
-    { id: 1, name: 'Aarav Sharma', role: 'Student', email: 'aarav.sharma@email.com', status: 'Active' },
-    { id: 2, name: 'Priya Singh', role: 'Student', email: 'priya.singh@email.com', status: 'Active' },
-    { id: 3, name: 'Dr. Sourav Ganguly', role: 'Faculty', email: 'sourav.ganguly@email.com', status: 'Active' },
-    { id: 4, name: 'Rahul Verma', role: 'Student', email: 'rahul.verma@email.com', status: 'Inactive' },
-    { id: 5, name: 'Prof. Anjali Kumari', role: 'Faculty', email: 'anjali.kumari@email.com', status: 'Active' }
-  ]);
 
   const loadData = async () => {
     try {
-      const [statsData, teacherData, logsData] = await Promise.all([
+      const [statsData, teacherData, logsData, studentData] = await Promise.all([
         dashboardAPI.getStats(),
         teacherAPI.getAll(),
-        adminAPI.getAuditLogs()
+        adminAPI.getAuditLogs(),
+        studentAPI.getAll()
       ]);
       setStats(statsData);
       setTeachersCount(teacherData.total || 0);
       setLogs(logsData.logs || []);
+
+      // Build master roster from real DB data
+      const students = (studentData.data || []).map(s => ({
+        id: `s-${s.id}`,
+        name: s.fullName,
+        email: s.email,
+        role: 'Student',
+        status: s.status || 'Active'
+      }));
+      const teachers = (teacherData.data || []).map(t => ({
+        id: `t-${t.id}`,
+        name: t.fullName,
+        email: t.email,
+        role: 'Faculty',
+        status: t.status || 'Active'
+      }));
+      setMasterRoster([...students, ...teachers]);
     } catch (err) {
       console.error(err);
       toast({

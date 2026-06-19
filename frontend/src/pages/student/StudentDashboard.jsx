@@ -88,6 +88,12 @@ export default function StudentDashboard() {
   });
 
 
+  const localDate = new Date();
+  const year = localDate.getFullYear();
+  const month = String(localDate.getMonth() + 1).padStart(2, '0');
+  const day = String(localDate.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
+
   return (
     <Container maxW="container.md" py={6} as={VStack} spacing={6} align="stretch" px={0}>
       {/* Title Header */}
@@ -97,48 +103,97 @@ export default function StudentDashboard() {
       </Box>
 
       {/* Active Session Notification */}
-      {activeSessions.length > 0 && (
-        <Card
-          bg="orange.500"
-          color="white"
-          borderRadius="xl"
-          border="1px solid"
-          borderColor="orange.400"
-          className="glow-animation"
-          mb={2}
-        >
-          <CardBody p={5}>
-            <Flex direction={{ base: 'column', sm: 'row' }} align="center" justify="space-between" gap={4}>
-              <HStack spacing={3} align="center">
-                <Box p={2.5} bg="rgba(255,255,255,0.2)" borderRadius="lg" display="flex" align="center" justify="center" className="pulse-icon">
-                  <Icon as={Bell} color="white" w={5} h={5} />
-                </Box>
-                <Box>
-                  <Text fontWeight="800" fontSize="md" letterSpacing="-0.010em">Active Attendance Session Live!</Text>
-                  <Text fontSize="sm" mt={0.5} color="orange.50">
-                    Faculty has opened the scanning window for: {activeSessions.map(s => s.className).join(', ')}.
-                  </Text>
-                </Box>
-              </HStack>
-              <Button
-                bg="white"
-                color="orange.600"
-                _hover={{ bg: 'orange.50', transform: 'translateY(-1px)' }}
-                _active={{ bg: 'white', transform: 'translateY(0)' }}
-                fontWeight="700"
-                size="md"
-                px={6}
-                borderRadius="lg"
-                boxShadow="sm"
-                transition="all 0.2s"
-                onClick={() => navigate('/student/webcam')}
-              >
-                Mark Attendance
-              </Button>
-            </Flex>
-          </CardBody>
-        </Card>
-      )}
+      {activeSessions.map(session => {
+        const isMarked = logs.some(l => l.date === todayStr && l.type && l.type.includes(session.classCode));
+        
+        if (isMarked) {
+          return (
+            <Card
+              key={session.classCode}
+              bg="green.500"
+              color="white"
+              borderRadius="xl"
+              border="1px solid"
+              borderColor="green.400"
+              mb={2}
+            >
+              <CardBody p={5}>
+                <Flex direction={{ base: 'column', sm: 'row' }} align="center" justify="space-between" gap={4}>
+                  <HStack spacing={3} align="center">
+                    <Box p={2.5} bg="rgba(255,255,255,0.2)" borderRadius="lg" display="flex" align="center" justify="center">
+                      <Icon as={CheckCircle2} color="white" w={5} h={5} />
+                    </Box>
+                    <Box>
+                      <Text fontWeight="800" fontSize="md" letterSpacing="-0.010em">Attendance Marked Successfully!</Text>
+                      <Text fontSize="sm" mt={0.5} color="green.50">
+                        You have already marked attendance for {session.className} today.
+                      </Text>
+                    </Box>
+                  </HStack>
+                  <Button
+                    bg="rgba(255,255,255,0.2)"
+                    color="white"
+                    disabled
+                    fontWeight="700"
+                    size="md"
+                    px={6}
+                    borderRadius="lg"
+                    _hover={{}}
+                    _active={{}}
+                    cursor="default"
+                  >
+                    Already Marked
+                  </Button>
+                </Flex>
+              </CardBody>
+            </Card>
+          );
+        }
+
+        return (
+          <Card
+            key={session.classCode}
+            bg="orange.500"
+            color="white"
+            borderRadius="xl"
+            border="1px solid"
+            borderColor="orange.400"
+            className="glow-animation"
+            mb={2}
+          >
+            <CardBody p={5}>
+              <Flex direction={{ base: 'column', sm: 'row' }} align="center" justify="space-between" gap={4}>
+                <HStack spacing={3} align="center">
+                  <Box p={2.5} bg="rgba(255,255,255,0.2)" borderRadius="lg" display="flex" align="center" justify="center" className="pulse-icon">
+                    <Icon as={Bell} color="white" w={5} h={5} />
+                  </Box>
+                  <Box>
+                    <Text fontWeight="800" fontSize="md" letterSpacing="-0.010em">Active Attendance Session Live!</Text>
+                    <Text fontSize="sm" mt={0.5} color="orange.50">
+                      Faculty has opened the scanning window for: {session.className}.
+                    </Text>
+                  </Box>
+                </HStack>
+                <Button
+                  bg="white"
+                  color="orange.600"
+                  _hover={{ bg: 'orange.50', transform: 'translateY(-1px)' }}
+                  _active={{ bg: 'white', transform: 'translateY(0)' }}
+                  fontWeight="700"
+                  size="md"
+                  px={6}
+                  borderRadius="lg"
+                  boxShadow="sm"
+                  transition="all 0.2s"
+                  onClick={() => navigate(`/student/webcam?class=${session.classCode}`)}
+                >
+                  Mark Attendance
+                </Button>
+              </Flex>
+            </CardBody>
+          </Card>
+        );
+      })}
 
       {/* Welcome Banner Card */}
       <Card

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { message, notification } from "antd";
+import { message, notification } from "../components/AntdGlobalHelper";
 import { authAPI } from "../services/api";
 import "./Login.css";
 
@@ -52,22 +52,13 @@ export default function Login() {
   }, [navigate]);
 
   const validateEmail = (value) => {
-    const localPart = value.split("@")[0];
-    const validDomains = ["@gmail.com", "@yahoo.com", "@outlook.com", "@hotmail.com", "@email.com"];
-    const hasValidDomain = validDomains.some((d) => value.endsWith(d));
-
     if (!value) return "Email is required.";
-    if (localPart.length < 3) return "Email must have at least 3 characters before @.";
-    if (!hasValidDomain) return "Email must end with @gmail.com, @yahoo.com, @outlook.com, @hotmail.com, or @email.com.";
+    if (!value.includes("@")) return "Please enter a valid email address.";
     return "";
   };
 
   const validatePassword = (value) => {
     if (!value) return "Password is required.";
-    if (value.length < 6) return "Password must be at least 6 characters.";
-    // eslint-disable-next-line no-useless-escape
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value))
-      return "Password must contain at least one special character (e.g. @, #, !).";
     return "";
   };
 
@@ -103,13 +94,15 @@ export default function Login() {
           duration: 3
         });
 
-        if (res.user.role === "student") {
-          navigate("/student/dashboard");
-        } else if (res.user.role === "teacher") {
-          navigate("/dashboard");
-        } else if (res.user.role === "admin") {
-          navigate("/admin/dashboard");
-        }
+        setTimeout(() => {
+          if (res.user.role === "student") {
+            navigate("/student/dashboard");
+          } else if (res.user.role === "teacher") {
+            navigate("/dashboard");
+          } else if (res.user.role === "admin") {
+            navigate("/admin/dashboard");
+          }
+        }, 1000);
       } catch (err) {
         console.error(err);
         const errMsg = err.message || "An error occurred during authentication.";

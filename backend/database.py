@@ -1,5 +1,6 @@
 import psycopg2
 from psycopg2.extras import DictCursor
+from psycopg2.pool import ThreadedConnectionPool
 import hashlib
 import secrets
 import os
@@ -19,15 +20,26 @@ def load_dotenv():
 
 load_dotenv()
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://neondb_owner:npg_N4GUC0fvbPaF@ep-blue-bonus-adni75hf-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-)
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is missing. Please set it in backend/.env")
+
+# Global thread-safe connection pool
+db_pool = None
+
+def get_db_pool():
+    global db_pool
+    if db_pool is None:
+        db_pool = ThreadedConnectionPool(1, 20, DATABASE_URL)
+    return db_pool
 
 def get_db_connection():
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = get_db_pool().getconn()
     conn.cursor_factory = DictCursor
     return conn
+
+def release_db_connection(conn):
+    get_db_pool().putconn(conn)
 
 def hash_password(password: str) -> str:
     salt = secrets.token_hex(16)
@@ -196,7 +208,7 @@ def init_db():
         """, ('admin@email.com', admin_pass, 'admin', 'ADMIN01', 'System Admin', 'Active'))
         
     conn.commit()
-    conn.close()
+    release_db_connection(conn)
 
 if __name__ == "__main__":
     init_db()

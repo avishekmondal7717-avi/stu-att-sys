@@ -2,28 +2,101 @@
 import psycopg2
 import jwt
 from datetime import datetime, timedelta
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from fastapi import FastAPI, HTTPException, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 
 from database import init_db, get_db_connection, hash_password, verify_password
+
+@contextmanager
+def db_session():
+    conn = get_db_connection()
+    try:
+        yield conn
+    finally:
+        conn.close()
+import os
 import cv2
 import numpy as np
 import base64
+import threading
 from pathlib import Path
+from fastapi.concurrency import run_in_threadpool
+from datetime import timezone, timedelta
+
+# Load environment-based parameters
+data_dir = Path(__file__).parent / "data"
+
+det_model = os.environ.get("FACE_DETECTION_MODEL_PATH", "face_detection_yunet_2023mar.onnx")
+rec_model = os.environ.get("FACE_RECOGNITION_MODEL_PATH", "face_recognition_sface_2021dec.onnx")
+
+det_model_path = Path(det_model)
+if not det_model_path.is_absolute():
+    det_model_path = data_dir / det_model
+
+rec_model_path = Path(rec_model)
+if not rec_model_path.is_absolute():
+    rec_model_path = data_dir / rec_model
+
+score_threshold = float(os.environ.get("FACE_DETECTOR_SCORE_THRESHOLD", "0.9"))
+nms_threshold = float(os.environ.get("FACE_DETECTOR_NMS_THRESHOLD", "0.3"))
 
 # Load OpenCV DNN Models once
-data_dir = Path(__file__).parent / "data"
 detector = cv2.FaceDetectorYN_create(
-    str(data_dir / 'face_detection_yunet_2023mar.onnx'), 
-    "", (320, 320), 0.9, 0.3, 5000
+    str(det_model_path), 
+    "", (320, 320), score_threshold, nms_threshold, 5000
 )
 recognizer = cv2.FaceRecognizerSF_create(
-    str(data_dir / 'face_recognition_sface_2021dec.onnx'), 
+    str(rec_model_path), 
     ""
 )
+
+# Biometric & Liveness settings
+FACE_MATCH_THRESHOLD = float(os.environ.get("FACE_MATCH_THRESHOLD", "0.40"))
+LIVENESS_LAPLACIAN_THRESHOLD = float(os.environ.get("LIVENESS_LAPLACIAN_THRESHOLD", "12.0"))
+
+# Timezone settings (IST default)
+LOCAL_OFFSET = float(os.environ.get("LOCAL_TIMEZONE_OFFSET_HOURS", "5.5"))
+LOCAL_TZ = timezone(timedelta(hours=LOCAL_OFFSET))
+
+# OpenCV Lock to prevent race conditions on shared detector in thread pool
+opencv_lock = threading.Lock()
+
+def get_utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+def format_utc_to_local_time(utc_iso_str: str) -> str:
+    if not utc_iso_str or utc_iso_str in ["-", "Pending"]:
+        return utc_iso_str
+    try:
+        dt_utc = datetime.fromisoformat(utc_iso_str.replace("Z", "+00:00"))
+        dt_local = dt_utc.astimezone(LOCAL_TZ)
+        return dt_local.strftime("%I:%M:%S %p")
+    except Exception as e:
+        print(f"Error converting time {utc_iso_str}: {e}")
+        return utc_iso_str
+
+def format_utc_to_local_date(utc_iso_str: str) -> str:
+    if not utc_iso_str or utc_iso_str in ["-", "Pending"]:
+        return utc_iso_str
+    try:
+        dt_utc = datetime.fromisoformat(utc_iso_str.replace("Z", "+00:00"))
+        dt_local = dt_utc.astimezone(LOCAL_TZ)
+        return dt_local.strftime("%Y-%m-%d")
+    except Exception as e:
+        print(f"Error converting date {utc_iso_str}: {e}")
+        return utc_iso_str
+
+def get_utc_range_for_local_date(local_date_str: str) -> tuple[str, str]:
+    local_start = datetime.strptime(local_date_str, "%Y-%m-%d").replace(tzinfo=LOCAL_TZ)
+    local_end = local_start + timedelta(days=1) - timedelta(microseconds=1)
+    
+    utc_start = local_start.astimezone(timezone.utc)
+    utc_end = local_end.astimezone(timezone.utc)
+    
+    return utc_start.isoformat(), utc_end.isoformat()
 
 def decode_base64_image(b64_string: str) -> np.ndarray:
     if "," in b64_string:
@@ -33,32 +106,33 @@ def decode_base64_image(b64_string: str) -> np.ndarray:
     return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
 def extract_face_embedding(frame: np.ndarray):
-    h, w, _ = frame.shape
-    detector.setInputSize((w, h))
-    _, faces = detector.detect(frame)
-    if faces is not None and len(faces) > 0:
-        face = faces[0]
-        box = face[0:4].astype(np.int32)
-        landmarks = face[4:14].astype(np.int32)
-        x, y, width, height = box
-        x1, y1 = max(0, x), max(0, y)
-        x2, y2 = min(w, x + width), min(h, y + height)
-        face_crop = frame[y1:y2, x1:x2]
-        
-        is_live = False
-        if face_crop.size > 0:
-            gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
-            laplacian_var = cv2.Laplacian(gray_crop, cv2.CV_64F).var()
-            r_eye_x, l_eye_x, nose_x = landmarks[0], landmarks[2], landmarks[4]
-            dist_r = abs(nose_x - r_eye_x)
-            dist_l = abs(nose_x - l_eye_x)
-            yaw_ratio = dist_r / max(dist_l, 0.001)
-            is_live = laplacian_var > 12.0 and (0.2 < yaw_ratio < 5.0)
+    with opencv_lock:
+        h, w, _ = frame.shape
+        detector.setInputSize((w, h))
+        _, faces = detector.detect(frame)
+        if faces is not None and len(faces) > 0:
+            face = faces[0]
+            box = face[0:4].astype(np.int32)
+            landmarks = face[4:14].astype(np.int32)
+            x, y, width, height = box
+            x1, y1 = max(0, x), max(0, y)
+            x2, y2 = min(w, x + width), min(h, y + height)
+            face_crop = frame[y1:y2, x1:x2]
+            
+            is_live = False
+            if face_crop.size > 0:
+                gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
+                laplacian_var = cv2.Laplacian(gray_crop, cv2.CV_64F).var()
+                r_eye_x, l_eye_x, nose_x = landmarks[0], landmarks[2], landmarks[4]
+                dist_r = abs(nose_x - r_eye_x)
+                dist_l = abs(nose_x - l_eye_x)
+                yaw_ratio = dist_r / max(dist_l, 0.001)
+                is_live = laplacian_var > LIVENESS_LAPLACIAN_THRESHOLD and (0.2 < yaw_ratio < 5.0)
 
-        aligned_face = recognizer.alignCrop(frame, face)
-        feature = recognizer.feature(aligned_face)
-        return feature.flatten().tolist(), box.tolist(), is_live
-    return None, None, False
+            aligned_face = recognizer.alignCrop(frame, face)
+            feature = recognizer.feature(aligned_face)
+            return feature.flatten().tolist(), box.tolist(), bool(is_live)
+        return None, None, False
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -94,7 +168,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=120) # 2 hours
+        expire = datetime.utcnow() + timedelta(hours=24) # 24 hours
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
     return encoded_jwt
@@ -112,11 +186,10 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         if not email:
             raise HTTPException(status_code=401, detail="Invalid token payload")
             
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-        user = cursor.fetchone()
-        conn.close()
+        with db_session() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+            user = cursor.fetchone()
         
         if not user:
             raise HTTPException(status_code=401, detail="User account not found")
@@ -156,14 +229,13 @@ def require_role(allowed_roles: List[str]):
 
 def log_action(action: str, actor: str, status: str):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO audit_logs (action, actor, status) VALUES (%s, %s, %s)",
-            (action, actor, status)
-        )
-        conn.commit()
-        conn.close()
+        with db_session() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO audit_logs (action, actor, status) VALUES (%s, %s, %s)",
+                (action, actor, status)
+            )
+            conn.commit()
     except Exception as e:
         print(f"Failed to log action: {e}")
 
@@ -254,204 +326,200 @@ def row_to_dict(row):
 # ─── Auth APIs ────────────────────────────────────────────────
 @app.post("/api/auth/register/student")
 async def register_student(payload: StudentRegisterRequest):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        # Check if student already exists
-        cursor.execute("SELECT id FROM students WHERE rollNumber = %s OR email = %s", (payload.rollNumber, payload.email))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="Student with this Roll Number or Email already exists")
-            
-        cursor.execute("SELECT id FROM users WHERE email = %s", (payload.email,))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="User email already registered")
+    with db_session() as conn:
+        cursor = conn.cursor()
+        try:
+            print(f"[Register] Attempting to register student: {payload.rollNumber}, email: {payload.email}")
+            # Check if student already exists
+            cursor.execute("SELECT id FROM students WHERE rollNumber = %s OR email = %s", (payload.rollNumber, payload.email))
+            if cursor.fetchone():
+                print("[Register] Error: Student with this Roll Number or Email already exists")
+                raise HTTPException(status_code=400, detail="Student with this Roll Number or Email already exists")
+                
+            cursor.execute("SELECT id FROM users WHERE email = %s", (payload.email,))
+            if cursor.fetchone():
+                print("[Register] Error: User email already registered")
+                raise HTTPException(status_code=400, detail="User email already registered")
 
-        if not payload.photo:
-            raise HTTPException(status_code=400, detail="Profile photo (face scan) is mandatory for registration.")
-            
-        frame = decode_base64_image(payload.photo)
-        if frame is None:
-            raise HTTPException(status_code=400, detail="Invalid photo data.")
-            
-        embedding, _, _ = extract_face_embedding(frame)
-        if not embedding:
-            raise HTTPException(status_code=400, detail="Could not detect a clear face in the provided scan. Please try again.")
+            if not payload.photo:
+                print("[Register] Error: Profile photo is missing")
+                raise HTTPException(status_code=400, detail="Profile photo (face scan) is mandatory for registration.")
+                
+            frame = decode_base64_image(payload.photo)
+            if frame is None:
+                print("[Register] Error: Invalid photo data (failed base64 decoding)")
+                raise HTTPException(status_code=400, detail="Invalid photo data.")
+                
+            embedding, _, _ = await run_in_threadpool(extract_face_embedding, frame)
+            if not embedding:
+                print("[Register] Error: Could not detect a clear face in the photo")
+                raise HTTPException(status_code=400, detail="Could not detect a clear face in the provided scan. Please try again.")
 
-        # Upload photo to Neon-friendly S3 / local fallback
-        from storage import upload_profile_photo
-        photo_url = upload_profile_photo(payload.photo, payload.rollNumber)
+            # Upload photo to Neon-friendly S3 / local fallback
+            from storage import upload_profile_photo
+            photo_url = upload_profile_photo(payload.photo, payload.rollNumber)
 
-        # Insert student record with pgvector embedding
-        cursor.execute("""
-            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, address, photo, status, embedding)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector)
-            RETURNING id
-        """, (
-            payload.rollNumber, payload.fullName, payload.email, payload.contact,
-            payload.department, payload.course, payload.semester, payload.gender, payload.dob,
-            payload.address, photo_url, "Active", str(embedding)
-        ))
-        
-        # Get student DB ID
-        student_db_id = cursor.fetchone()[0]
-        
-        # Insert user login account
-        hashed = hash_password(payload.password)
-        cursor.execute("""
-            INSERT INTO users (email, password, role, referenceId, fullName, status)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (
-            payload.email, hashed, 'student', payload.rollNumber, payload.fullName, "Active"
-        ))
-        
-        conn.commit()
-        conn.close()
-        return {"success": True, "id": student_db_id, "rollNumber": payload.rollNumber}
-    except psycopg2.IntegrityError:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Database integrity error. Student ID or email might be duplicated.")
-    except HTTPException:
-        conn.close()
-        raise
-    except Exception as e:
-        conn.close()
-        print(f"Exception in register_student: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+            # Insert student record with pgvector embedding
+            cursor.execute("""
+                INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, address, photo, status, embedding)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector)
+                RETURNING id
+            """, (
+                payload.rollNumber, payload.fullName, payload.email, payload.contact,
+                payload.department, payload.course, payload.semester, payload.gender, payload.dob,
+                payload.address, photo_url, "Active", str(embedding)
+            ))
+            
+            # Get student DB ID
+            student_db_id = cursor.fetchone()[0]
+            
+            # Insert user login account
+            hashed = hash_password(payload.password)
+            cursor.execute("""
+                INSERT INTO users (email, password, role, referenceId, fullName, status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                payload.email, hashed, 'student', payload.rollNumber, payload.fullName, "Active"
+            ))
+            
+            conn.commit()
+            print("[Register] Success!")
+            return {"success": True, "id": student_db_id, "rollNumber": payload.rollNumber}
+        except psycopg2.IntegrityError as ie:
+            print(f"[Register] IntegrityError: {ie}")
+            raise HTTPException(status_code=400, detail="Database integrity error. Student ID or email might be duplicated.")
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[Register] Unexpected exception: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/auth/register/teacher")
 async def register_teacher(payload: TeacherRegisterRequest):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        # Check if teacher already exists
-        cursor.execute("SELECT id FROM teachers WHERE teacherId = %s OR email = %s", (payload.teacherId, payload.email))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="Teacher with this ID or Email already exists")
-            
-        cursor.execute("SELECT id FROM users WHERE email = %s", (payload.email,))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="User email already registered")
+    with db_session() as conn:
+        cursor = conn.cursor()
+        try:
+            # Check if teacher already exists
+            cursor.execute("SELECT id FROM teachers WHERE teacherId = %s OR email = %s", (payload.teacherId, payload.email))
+            if cursor.fetchone():
+                raise HTTPException(status_code=400, detail="Teacher with this ID or Email already exists")
+                
+            cursor.execute("SELECT id FROM users WHERE email = %s", (payload.email,))
+            if cursor.fetchone():
+                raise HTTPException(status_code=400, detail="User email already registered")
 
-        # Insert teacher record
-        cursor.execute("""
-            INSERT INTO teachers (teacherId, fullName, email, contact, department, status, photo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (
-            payload.teacherId, payload.fullName, payload.email, payload.contact,
-            payload.department, "Active", f"https://i.pravatar.cc/40?img={hash(payload.teacherId) % 70 + 50}"
-        ))
-        
-        teacher_db_id = cursor.fetchone()[0]
-        
-        # Insert user login account
-        hashed = hash_password(payload.password)
-        cursor.execute("""
-            INSERT INTO users (email, password, role, referenceId, fullName, status)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (
-            payload.email, hashed, 'teacher', payload.teacherId, payload.fullName, "Active"
-        ))
-        
-        conn.commit()
-        conn.close()
-        return {"success": True, "id": teacher_db_id, "teacherId": payload.teacherId}
-    except psycopg2.IntegrityError:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Database integrity error. Teacher ID or email might be duplicated.")
-    except Exception as e:
-        conn.close()
-        raise HTTPException(status_code=500, detail=str(e))
+            # Insert teacher record
+            cursor.execute("""
+                INSERT INTO teachers (teacherId, fullName, email, contact, department, status, photo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                payload.teacherId, payload.fullName, payload.email, payload.contact,
+                payload.department, "Active", f"https://i.pravatar.cc/40?img={hash(payload.teacherId) % 70 + 50}"
+            ))
+            
+            teacher_db_id = cursor.fetchone()[0]
+            
+            # Insert user login account
+            hashed = hash_password(payload.password)
+            cursor.execute("""
+                INSERT INTO users (email, password, role, referenceId, fullName, status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                payload.email, hashed, 'teacher', payload.teacherId, payload.fullName, "Active"
+            ))
+            
+            conn.commit()
+            return {"success": True, "id": teacher_db_id, "teacherId": payload.teacherId}
+        except psycopg2.IntegrityError:
+            raise HTTPException(status_code=400, detail="Database integrity error. Teacher ID or email might be duplicated.")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/auth/login")
 async def login(payload: LoginRequest):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE email = %s", (payload.email,))
-    user = cursor.fetchone()
-    conn.close()
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+    with db_session() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE email = %s", (payload.email,))
+        user = cursor.fetchone()
         
-    user_dict = row_to_dict(user)
-    
-    if not verify_password(payload.password, user_dict["password"]):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+            
+        user_dict = row_to_dict(user)
         
-    if user_dict["status"] == "Pending Verification":
-        raise HTTPException(status_code=400, detail="Email verification pending. Please verify your email first.")
-        
-    if user_dict["status"] == "Suspended":
-        raise HTTPException(status_code=403, detail="Your account has been suspended. Please contact administrator.")
-        
-    # Check if specific role requested
-    if payload.role and payload.role != user_dict["role"]:
-        raise HTTPException(status_code=403, detail=f"Unauthorized role. Access denied for role {payload.role}")
-        
-    # Generate token
-    token = create_access_token({
-        "email": user_dict["email"],
-        "role": user_dict["role"],
-        "fullName": user_dict["fullName"],
-        "referenceId": user_dict["referenceId"]
-    })
-    
-    log_action("Logged into system", user_dict["fullName"], "Success")
-    
-    # Fetch extra profile details based on role
-    profile_data = {}
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    if user_dict["role"] == "student":
-        cursor.execute('SELECT * FROM students WHERE email = %s', (user_dict["email"],))
-        student_row = cursor.fetchone()
-        if student_row:
-            student_dict = row_to_dict(student_row)
-            profile_data = {
-                "rollNumber": student_dict.get("rollNumber"),
-                "contact": student_dict.get("contact"),
-                "department": student_dict.get("department"),
-                "course": student_dict.get("course"),
-                "semester": student_dict.get("semester"),
-                "gender": student_dict.get("gender"),
-                "dob": student_dict.get("dob"),
-                "address": student_dict.get("address"),
-                "photo": student_dict.get("photo")
-            }
-    elif user_dict["role"] == "teacher":
-        cursor.execute('SELECT * FROM teachers WHERE email = %s', (user_dict["email"],))
-        teacher_row = cursor.fetchone()
-        if teacher_row:
-            teacher_dict = row_to_dict(teacher_row)
-            profile_data = {
-                "teacherId": teacher_dict.get("teacherId"),
-                "contact": teacher_dict.get("contact"),
-                "department": teacher_dict.get("department"),
-                "gender": teacher_dict.get("gender"),
-                "dob": teacher_dict.get("dob")
-            }
-    conn.close()
-    
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {
+        if not verify_password(payload.password, user_dict["password"]):
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+            
+        if user_dict["status"] == "Pending Verification":
+            raise HTTPException(status_code=400, detail="Email verification pending. Please verify your email first.")
+            
+        if user_dict["status"] == "Suspended":
+            raise HTTPException(status_code=403, detail="Your account has been suspended. Please contact administrator.")
+            
+        # Check if specific role requested
+        if payload.role and payload.role != user_dict["role"]:
+            raise HTTPException(status_code=403, detail=f"Unauthorized role. Access denied for role {payload.role}")
+            
+        # Generate token
+        token = create_access_token({
             "email": user_dict["email"],
             "role": user_dict["role"],
             "fullName": user_dict["fullName"],
-            "referenceId": user_dict["referenceId"],
-            **profile_data
+            "referenceId": user_dict["referenceId"]
+        })
+        
+        log_action("Logged into system", user_dict["fullName"], "Success")
+        
+        # Fetch extra profile details based on role
+        profile_data = {}
+        if user_dict["role"] == "student":
+            cursor.execute('SELECT * FROM students WHERE email = %s', (user_dict["email"],))
+            student_row = cursor.fetchone()
+            if student_row:
+                student_dict = row_to_dict(student_row)
+                profile_data = {
+                    "rollNumber": student_dict.get("rollNumber"),
+                    "contact": student_dict.get("contact"),
+                    "department": student_dict.get("department"),
+                    "course": student_dict.get("course"),
+                    "semester": student_dict.get("semester"),
+                    "gender": student_dict.get("gender"),
+                    "dob": student_dict.get("dob"),
+                    "address": student_dict.get("address"),
+                    "photo": student_dict.get("photo")
+                }
+        elif user_dict["role"] == "teacher":
+            cursor.execute('SELECT * FROM teachers WHERE email = %s', (user_dict["email"],))
+            teacher_row = cursor.fetchone()
+            if teacher_row:
+                teacher_dict = row_to_dict(teacher_row)
+                profile_data = {
+                    "teacherId": teacher_dict.get("teacherId"),
+                    "contact": teacher_dict.get("contact"),
+                    "department": teacher_dict.get("department"),
+                    "gender": teacher_dict.get("gender"),
+                    "dob": teacher_dict.get("dob")
+                }
+        
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "email": user_dict["email"],
+                "role": user_dict["role"],
+                "fullName": user_dict["fullName"],
+                "referenceId": user_dict["referenceId"],
+                **profile_data
+            }
         }
-    }
 
 @app.get("/api/admin/audit-logs", dependencies=[Depends(require_role(["admin"]))])
 async def get_audit_logs():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, timestamp, action, actor, status FROM audit_logs ORDER BY id DESC LIMIT 50")
-    rows = cursor.fetchall()
-    conn.close()
+    with db_session() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, timestamp, action, actor, status FROM audit_logs ORDER BY id DESC LIMIT 50")
+        rows = cursor.fetchall()
     
     logs = []
     for r in rows:
@@ -478,35 +546,53 @@ async def get_audit_logs():
 # ─── Dashboard Stats API ──────────────────────────────────────
 @app.get("/api/dashboard/stats", dependencies=[Depends(require_role(["admin", "teacher"]))])
 async def get_dashboard_stats():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    with db_session() as conn:
+        cursor = conn.cursor()
+        
+        # Consistent Timezone Handling: Determine today's date in local time
+        today_local = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
+        utc_start, utc_end = get_utc_range_for_local_date(today_local)
+        
+        # 1. Total Students
+        cursor.execute("SELECT COUNT(*) FROM students")
+        total_students = cursor.fetchone()[0]
+        
+        # 2. Total Present today
+        cursor.execute("""
+            SELECT COUNT(*) FROM attendance 
+            WHERE (date = %s OR (timein >= %s AND timein <= %s)) AND status = 'Present'
+        """, (today_local, utc_start, utc_end))
+        total_present = cursor.fetchone()[0]
+        
+        # 3. Total Absent today (Active students - Present today)
+        cursor.execute("SELECT COUNT(*) FROM students WHERE status = 'Active'")
+        active_students = cursor.fetchone()[0]
+        total_absent = max(0, active_students - total_present)
+        
+        # 4. Attendance Rate
+        attendance_rate = int((total_present / max(1, active_students)) * 100)
+        
+        # 5. Recent Attendance Logs
+        cursor.execute("""
+            SELECT a.id, a.rollNumber, a.studentName, a.department, a.date, a.timeIn, a.timeOut, a.status, a.markedBy
+            FROM attendance a
+            ORDER BY a.id DESC LIMIT 10
+        """)
+        recent_raw = [row_to_dict(r) for r in cursor.fetchall()]
+        
+        # Format UTC timestamps to local timezone strings on presentation
+        recent = []
+        for r in recent_raw:
+            time_in_local = format_utc_to_local_time(r["timeIn"])
+            time_out_local = format_utc_to_local_time(r["timeOut"])
+            date_local = format_utc_to_local_date(r["timeIn"]) if r["timeIn"] not in ["-", "Pending"] else r["date"]
+            recent.append({
+                **r,
+                "date": date_local,
+                "timeIn": time_in_local,
+                "timeOut": time_out_local
+            })
     
-    # 1. Total Students
-    cursor.execute("SELECT COUNT(*) FROM students")
-    total_students = cursor.fetchone()[0]
-    
-    # 2. Total Present today
-    cursor.execute("SELECT COUNT(*) FROM attendance WHERE date = %s AND status = 'Present'", (today_str,))
-    total_present = cursor.fetchone()[0]
-    
-    # 3. Total Absent today (Active students - Present today)
-    cursor.execute("SELECT COUNT(*) FROM students WHERE status = 'Active'")
-    active_students = cursor.fetchone()[0]
-    total_absent = max(0, active_students - total_present)
-    
-    # 4. Attendance Rate
-    attendance_rate = int((total_present / max(1, active_students)) * 100)
-    
-    # 5. Recent Attendance Logs
-    cursor.execute("""
-        SELECT a.id, a.rollNumber, a.studentName, a.department, a.date, a.timeIn, a.timeOut, a.status, a.markedBy
-        FROM attendance a
-        ORDER BY a.id DESC LIMIT 10
-    """)
-    recent = [row_to_dict(r) for r in cursor.fetchall()]
-    
-    conn.close()
     return {
         "totalStudents": total_students,
         "totalPresent": total_present,
@@ -518,261 +604,247 @@ async def get_dashboard_stats():
 # ─── Students CRUD ───────────────────────────────────────────
 @app.get("/api/students", dependencies=[Depends(require_role(["admin", "teacher"]))])
 async def get_students(department: Optional[str] = None, semester: Optional[str] = None):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    query = "SELECT * FROM students WHERE 1=1"
-    params = []
-    if department:
-        query += " AND department = %s"
-        params.append(department)
-    if semester:
-        query += " AND semester = %s"
-        params.append(semester)
+    with db_session() as conn:
+        cursor = conn.cursor()
         
-    cursor.execute(query, params)
-    students = [row_to_dict(r) for r in cursor.fetchall()]
-    conn.close()
+        query = "SELECT * FROM students WHERE 1=1"
+        params = []
+        if department:
+            query += " AND department = %s"
+            params.append(department)
+        if semester:
+            query += " AND semester = %s"
+            params.append(semester)
+            
+        cursor.execute(query, params)
+        students = [row_to_dict(r) for r in cursor.fetchall()]
     return {"data": students, "total": len(students)}
 
 @app.get("/api/students/{student_id}", dependencies=[Depends(require_role(["admin", "teacher", "student"]))])
 async def get_student(student_id: int):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM students WHERE id = %s", (student_id,))
-    student = row_to_dict(cursor.fetchone())
-    conn.close()
+    with db_session() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM students WHERE id = %s", (student_id,))
+        student = row_to_dict(cursor.fetchone())
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
     return student
 
 @app.post("/api/students", dependencies=[Depends(require_role(["admin", "teacher"]))])
 async def create_student(student: StudentCreate):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, address, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (
-            student.rollNumber, student.fullName, student.email, student.contact,
-            student.department, student.course, student.semester, student.gender, student.dob,
-            student.address, student.status
-        ))
-        
-        # Get student DB ID
-        new_id = cursor.fetchone()[0]
-        
-        # Auto-create user credentials for the newly created student
-        default_pass = hash_password("student@123")
-        cursor.execute("""
-            INSERT INTO users (email, password, role, referenceId, fullName, status)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (
-            student.email, default_pass, 'student', student.rollNumber, student.fullName, student.status
-        ))
-        
-        conn.commit()
-        conn.close()
-        return {"id": new_id, "rollNumber": student.rollNumber, "fullName": student.fullName}
-    except psycopg2.IntegrityError:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Student with this Roll Number or Email already exists")
+    with db_session() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO students (rollNumber, fullName, email, contact, department, course, semester, gender, dob, address, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                student.rollNumber, student.fullName, student.email, student.contact,
+                student.department, student.course, student.semester, student.gender, student.dob,
+                student.address, student.status
+            ))
+            
+            # Get student DB ID
+            new_id = cursor.fetchone()[0]
+            
+            # Auto-create user credentials for the newly created student
+            default_pass = hash_password("student@123")
+            cursor.execute("""
+                INSERT INTO users (email, password, role, referenceId, fullName, status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                student.email, default_pass, 'student', student.rollNumber, student.fullName, student.status
+            ))
+            
+            conn.commit()
+            return {"id": new_id, "rollNumber": student.rollNumber, "fullName": student.fullName}
+        except psycopg2.IntegrityError:
+            raise HTTPException(status_code=400, detail="Student with this Roll Number or Email already exists")
 
 @app.put("/api/students/{student_id}", dependencies=[Depends(require_role(["admin", "teacher"]))])
 async def update_student(student_id: int, student: StudentCreate, current_user: dict = Depends(get_current_user)):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT email, status FROM students WHERE id = %s", (student_id,))
-    old_student = cursor.fetchone()
-    if not old_student:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Student not found")
+    with db_session() as conn:
+        cursor = conn.cursor()
         
-    old_email = old_student["email"]
-    old_status = old_student["status"]
-    
-    if student.flushBiometrics:
-        cursor.execute("""
-            UPDATE students
-            SET rollNumber=%s, fullName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, address=%s, status=%s, embedding=NULL
-            WHERE id=%s
-        """, (
-            student.rollNumber, student.fullName, student.email, student.contact,
-            student.department, student.course, student.semester, student.gender, student.dob,
-            student.address, 'Pending Verification', student_id
-        ))
+        cursor.execute("SELECT email, status FROM students WHERE id = %s", (student_id,))
+        old_student = cursor.fetchone()
+        if not old_student:
+            raise HTTPException(status_code=404, detail="Student not found")
+            
+        old_email = old_student["email"]
+        old_status = old_student["status"]
         
-        cursor.execute("""
-            UPDATE users
-            SET email=%s, fullName=%s, referenceId=%s, status=%s
-            WHERE email=%s
-        """, (
-            student.email, student.fullName, student.rollNumber, 'Pending Verification', old_email
-        ))
-        
-        log_action(
-            f"Flushed biometric template for student {student.fullName} ({student.rollNumber})",
-            current_user["fullName"],
-            "Success"
-        )
-    else:
-        cursor.execute("""
-            UPDATE students
-            SET rollNumber=%s, fullName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, address=%s, status=%s
-            WHERE id=%s
-        """, (
-            student.rollNumber, student.fullName, student.email, student.contact,
-            student.department, student.course, student.semester, student.gender, student.dob,
-            student.address, student.status, student_id
-        ))
-        
-        cursor.execute("""
-            UPDATE users
-            SET email=%s, fullName=%s, referenceId=%s, status=%s
-            WHERE email=%s
-        """, (
-            student.email, student.fullName, student.rollNumber, student.status, old_email
-        ))
-        
-        if old_status != student.status:
+        if student.flushBiometrics:
+            cursor.execute("""
+                UPDATE students
+                SET rollNumber=%s, fullName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, address=%s, status=%s, embedding=NULL
+                WHERE id=%s
+            """, (
+                student.rollNumber, student.fullName, student.email, student.contact,
+                student.department, student.course, student.semester, student.gender, student.dob,
+                student.address, 'Pending Verification', student_id
+            ))
+            
+            cursor.execute("""
+                UPDATE users
+                SET email=%s, fullName=%s, referenceId=%s, status=%s
+                WHERE email=%s
+            """, (
+                student.email, student.fullName, student.rollNumber, 'Pending Verification', old_email
+            ))
+            
             log_action(
-                f"Toggled status for student {student.fullName} ({student.rollNumber}) to {student.status}",
+                f"Flushed biometric template for student {student.fullName} ({student.rollNumber})",
                 current_user["fullName"],
                 "Success"
             )
+        else:
+            cursor.execute("""
+                UPDATE students
+                SET rollNumber=%s, fullName=%s, email=%s, contact=%s, department=%s, course=%s, semester=%s, gender=%s, dob=%s, address=%s, status=%s
+                WHERE id=%s
+            """, (
+                student.rollNumber, student.fullName, student.email, student.contact,
+                student.department, student.course, student.semester, student.gender, student.dob,
+                student.address, student.status, student_id
+            ))
             
-    conn.commit()
-    conn.close()
+            cursor.execute("""
+                UPDATE users
+                SET email=%s, fullName=%s, referenceId=%s, status=%s
+                WHERE email=%s
+            """, (
+                student.email, student.fullName, student.rollNumber, student.status, old_email
+            ))
+            
+            if old_status != student.status:
+                log_action(
+                    f"Toggled status for student {student.fullName} ({student.rollNumber}) to {student.status}",
+                    current_user["fullName"],
+                    "Success"
+                )
+                
+        conn.commit()
     return {"success": True}
 
 
 @app.delete("/api/students/{student_id}", dependencies=[Depends(require_role(["admin"]))])
 async def delete_student(student_id: int):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Get student details to clean up credentials
-    cursor.execute("SELECT email FROM students WHERE id = %s", (student_id,))
-    student = cursor.fetchone()
-    if student:
-        email = student["email"]
-        cursor.execute("DELETE FROM students WHERE id = %s", (student_id,))
-        cursor.execute("DELETE FROM users WHERE email = %s", (email,))
-        conn.commit()
+    with db_session() as conn:
+        cursor = conn.cursor()
         
-    conn.close()
+        # Get student details to clean up credentials
+        cursor.execute("SELECT email FROM students WHERE id = %s", (student_id,))
+        student = cursor.fetchone()
+        if student:
+            email = student["email"]
+            cursor.execute("DELETE FROM students WHERE id = %s", (student_id,))
+            cursor.execute("DELETE FROM users WHERE email = %s", (email,))
+            conn.commit()
+        
     return {"success": True}
 
 # ─── Teachers CRUD (Admin Hub) ───────────────────────────────
 @app.get("/api/teachers", dependencies=[Depends(require_role(["admin"]))])
 async def get_teachers(department: Optional[str] = None):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    query = "SELECT * FROM teachers WHERE 1=1"
-    params = []
-    if department:
-        query += " AND department = %s"
-        params.append(department)
+    with db_session() as conn:
+        cursor = conn.cursor()
         
-    cursor.execute(query, params)
-    teachers = [row_to_dict(r) for r in cursor.fetchall()]
-    conn.close()
+        query = "SELECT * FROM teachers WHERE 1=1"
+        params = []
+        if department:
+            query += " AND department = %s"
+            params.append(department)
+            
+        cursor.execute(query, params)
+        teachers = [row_to_dict(r) for r in cursor.fetchall()]
     return {"data": teachers, "total": len(teachers)}
 
 @app.get("/api/teachers/{teacher_id}", dependencies=[Depends(require_role(["admin"]))])
 async def get_teacher(teacher_id: int):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM teachers WHERE id = %s", (teacher_id,))
-    teacher = row_to_dict(cursor.fetchone())
-    conn.close()
+    with db_session() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM teachers WHERE id = %s", (teacher_id,))
+        teacher = row_to_dict(cursor.fetchone())
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
     return teacher
 
 @app.post("/api/teachers", dependencies=[Depends(require_role(["admin"]))])
 async def create_teacher(teacher: TeacherCreate):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            INSERT INTO teachers (teacherId, fullName, email, contact, department, status, photo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (
-            teacher.teacherId, teacher.fullName, teacher.email, teacher.contact,
-            teacher.department, teacher.status, f"https://i.pravatar.cc/40?img={hash(teacher.teacherId) % 30 + 50}"
-        ))
-        
-        # Auto-create user credentials for the newly created teacher
-        default_pass = hash_password("teacher@123")
-        cursor.execute("""
-            INSERT INTO users (email, password, role, referenceId, fullName, status)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (
-            teacher.email, default_pass, 'teacher', teacher.teacherId, teacher.fullName, teacher.status
-        ))
-        
-        conn.commit()
-        new_id = cursor.lastrowid
-        conn.close()
-        return {"id": new_id, "teacherId": teacher.teacherId, "fullName": teacher.fullName}
-    except psycopg2.IntegrityError:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Teacher with this ID or Email already exists")
+    with db_session() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO teachers (teacherId, fullName, email, contact, department, status, photo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (
+                teacher.teacherId, teacher.fullName, teacher.email, teacher.contact,
+                teacher.department, teacher.status, f"https://i.pravatar.cc/40?img={hash(teacher.teacherId) % 30 + 50}"
+            ))
+            
+            # Auto-create user credentials for the newly created teacher
+            default_pass = hash_password("teacher@123")
+            cursor.execute("""
+                INSERT INTO users (email, password, role, referenceId, fullName, status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                teacher.email, default_pass, 'teacher', teacher.teacherId, teacher.fullName, teacher.status
+            ))
+            
+            conn.commit()
+            new_id = cursor.lastrowid
+            return {"id": new_id, "teacherId": teacher.teacherId, "fullName": teacher.fullName}
+        except psycopg2.IntegrityError:
+            raise HTTPException(status_code=400, detail="Teacher with this ID or Email already exists")
 
 @app.put("/api/teachers/{teacher_id}", dependencies=[Depends(require_role(["admin"]))])
 async def update_teacher(teacher_id: int, teacher: TeacherCreate):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT email FROM teachers WHERE id = %s", (teacher_id,))
-    old_teacher = cursor.fetchone()
-    if not old_teacher:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Teacher not found")
+    with db_session() as conn:
+        cursor = conn.cursor()
         
-    old_email = old_teacher["email"]
-    
-    cursor.execute("""
-        UPDATE teachers
-        SET teacherId=%s, fullName=%s, email=%s, contact=%s, department=%s, status=%s
-        WHERE id=%s
-    """, (
-        teacher.teacherId, teacher.fullName, teacher.email, teacher.contact,
-        teacher.department, teacher.status, teacher_id
-    ))
-    
-    # Also update user login profile
-    cursor.execute("""
-        UPDATE users
-        SET email=%s, fullName=%s, referenceId=%s, status=%s
-        WHERE email=%s
-    """, (
-        teacher.email, teacher.fullName, teacher.teacherId, teacher.status, old_email
-    ))
-    
-    conn.commit()
-    conn.close()
+        cursor.execute("SELECT email FROM teachers WHERE id = %s", (teacher_id,))
+        old_teacher = cursor.fetchone()
+        if not old_teacher:
+            raise HTTPException(status_code=404, detail="Teacher not found")
+            
+        old_email = old_teacher["email"]
+        
+        cursor.execute("""
+            UPDATE teachers
+            SET teacherId=%s, fullName=%s, email=%s, contact=%s, department=%s, status=%s
+            WHERE id=%s
+        """, (
+            teacher.teacherId, teacher.fullName, teacher.email, teacher.contact,
+            teacher.department, teacher.status, teacher_id
+        ))
+        
+        # Also update user login profile
+        cursor.execute("""
+            UPDATE users
+            SET email=%s, fullName=%s, referenceId=%s, status=%s
+            WHERE email=%s
+        """, (
+            teacher.email, teacher.fullName, teacher.teacherId, teacher.status, old_email
+        ))
+        
+        conn.commit()
     return {"success": True}
 
 @app.delete("/api/teachers/{teacher_id}", dependencies=[Depends(require_role(["admin"]))])
 async def delete_teacher(teacher_id: int):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT email FROM teachers WHERE id = %s", (teacher_id,))
-    teacher = cursor.fetchone()
-    if teacher:
-        email = teacher["email"]
-        cursor.execute("DELETE FROM teachers WHERE id = %s", (teacher_id,))
-        cursor.execute("DELETE FROM users WHERE email = %s", (email,))
-        conn.commit()
+    with db_session() as conn:
+        cursor = conn.cursor()
         
-    conn.close()
+        cursor.execute("SELECT email FROM teachers WHERE id = %s", (teacher_id,))
+        teacher = cursor.fetchone()
+        if teacher:
+            email = teacher["email"]
+            cursor.execute("DELETE FROM teachers WHERE id = %s", (teacher_id,))
+            cursor.execute("DELETE FROM users WHERE email = %s", (email,))
+            conn.commit()
+        
     return {"success": True}
 
 # ─── Face Biometrics Enrollment (pgvector) ────────────────────
@@ -781,156 +853,164 @@ class FaceEnrollRequest(BaseModel):
 
 @app.post("/api/students/{student_id}/face-images", dependencies=[Depends(require_role(["admin", "teacher", "student"]))])
 async def enroll_student_faces(student_id: int, request: FaceEnrollRequest):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM students WHERE id = %s", (student_id,))
-    student = cursor.fetchone()
-    if not student:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Student not found")
+    with db_session() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM students WHERE id = %s", (student_id,))
+        student = cursor.fetchone()
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
 
-    # Extract the best embedding from the provided images
-    for b64_img in request.images:
-        frame = decode_base64_image(b64_img)
-        if frame is None:
-            continue
-        embedding, _, _ = extract_face_embedding(frame)
-        if embedding:
-            cursor.execute(
-                "UPDATE students SET embedding = %s::vector WHERE id = %s",
-                (str(embedding), student_id)
-            )
-            conn.commit()
-            conn.close()
-            return {"success": True, "samples_enrolled": 1}
+        # Extract the best embedding from the provided images
+        for b64_img in request.images:
+            frame = decode_base64_image(b64_img)
+            if frame is None:
+                continue
+            embedding, _, _ = await run_in_threadpool(extract_face_embedding, frame)
+            if embedding:
+                cursor.execute(
+                    "UPDATE students SET embedding = %s::vector WHERE id = %s",
+                    (str(embedding), student_id)
+                )
+                conn.commit()
+                return {"success": True, "samples_enrolled": 1}
 
-    conn.close()
     raise HTTPException(status_code=400, detail="Could not detect any faces. Ensure proper lighting and a clear view.")
 
 # ─── Attendance Records ───────────────────────────────────────
 @app.get("/api/attendance", dependencies=[Depends(require_role(["admin", "teacher", "student"]))])
 async def get_attendance(date: Optional[str] = None):
     if not date:
-        date = datetime.now().strftime("%Y-%m-%d")
+        date = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
         
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Get all active students
-    cursor.execute("SELECT id, rollNumber, fullName, department, semester, photo FROM students WHERE status = 'Active'")
-    students_list = cursor.fetchall()
-    
-    # Get all logs for this date
-    cursor.execute("SELECT * FROM attendance WHERE date = %s", (date,))
-    attendance_logs = {row["rollNumber"]: row_to_dict(row) for row in cursor.fetchall()}
-    
-    records = []
-    present_count = 0
-    absent_count = 0
-    
-    for s in students_list:
-        roll = s["rollNumber"]
-        log = attendance_logs.get(roll)
+    with db_session() as conn:
+        cursor = conn.cursor()
         
-        if log:
-            records.append({
-                "id": log["id"],
-                "studentId": s["id"],
-                "rollNumber": roll,
-                "studentName": s["fullName"],
-                "department": s["department"],
-                "date": date,
-                "timeIn": log["timeIn"],
-                "timeOut": log["timeOut"],
-                "status": log["status"],
-                "markedBy": log["markedBy"],
-                "photo": s["photo"]
-            })
-            if log["status"] == "Present":
-                present_count += 1
-            else:
-                absent_count += 1
-        else:
-            records.append({
-                "id": f"absent-{roll}",
-                "studentId": s["id"],
-                "rollNumber": roll,
-                "studentName": s["fullName"],
-                "department": s["department"],
-                "date": date,
-                "timeIn": "-",
-                "timeOut": "-",
-                "status": "Absent",
-                "markedBy": "-",
-                "photo": s["photo"]
-            })
-            absent_count += 1
+        # Get all active students
+        cursor.execute("SELECT id, rollnumber, fullname, department, semester, photo FROM students WHERE status = 'Active'")
+        students_list = [row_to_dict(row) for row in cursor.fetchall()]
+        
+        # Get all logs for this date (using UTC range + fallback to legacy date column)
+        utc_start, utc_end = get_utc_range_for_local_date(date)
+        cursor.execute("""
+            SELECT * FROM attendance 
+            WHERE date = %s OR (timein >= %s AND timein <= %s)
+        """, (date, utc_start, utc_end))
+        attendance_logs = {row["rollnumber"]: row_to_dict(row) for row in cursor.fetchall()}
+        
+        records = []
+        present_count = 0
+        absent_count = 0
+        
+        for s in students_list:
+            roll = s["rollNumber"]
+            log = attendance_logs.get(roll)
             
-    conn.close()
-    return {"data": records, "total": len(records), "present": present_count, "absent": absent_count}
+            if log:
+                # Format UTC ISO string back to local time/date on presentation
+                time_in_local = format_utc_to_local_time(log["timeIn"])
+                time_out_local = format_utc_to_local_time(log["timeOut"])
+                records.append({
+                    "id": log["id"],
+                    "studentId": s["id"],
+                    "rollNumber": roll,
+                    "studentName": s["fullName"],
+                    "department": s["department"],
+                    "date": date,
+                    "timeIn": time_in_local,
+                    "timeOut": time_out_local,
+                    "status": log["status"],
+                    "markedBy": log["markedBy"],
+                    "photo": s["photo"]
+                })
+                if log["status"] == "Present":
+                    present_count += 1
+                else:
+                    absent_count += 1
+            else:
+                records.append({
+                    "id": f"absent-{roll}",
+                    "studentId": s["id"],
+                    "rollNumber": roll,
+                    "studentName": s["fullName"],
+                    "department": s["department"],
+                    "date": date,
+                    "timeIn": "-",
+                    "timeOut": "-",
+                    "status": "Absent",
+                    "markedBy": "-",
+                    "photo": s["photo"]
+                })
+                absent_count += 1
+                
+        return {"data": records, "total": len(records), "present": present_count, "absent": absent_count}
 
 @app.post("/api/attendance/mark", dependencies=[Depends(require_role(["admin", "teacher"]))])
 async def mark_manual(payload: AttendanceMarkRequest):
     if not payload.date:
-        payload.date = datetime.now().strftime("%Y-%m-%d")
+        payload.date = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
         
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT rollNumber, fullName, department FROM students WHERE id = %s", (payload.studentId,))
-    student = cursor.fetchone()
-    if not student:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Student not found")
+    with db_session() as conn:
+        cursor = conn.cursor()
         
-    roll_number = student["rollNumber"]
-    full_name = student["fullName"]
-    dept = student["department"]
-    
-    time_str = datetime.now().strftime("%I:%M:%S %p")
-    status_str = "Present" if payload.status else "Absent"
-    
-    if payload.status:
-        # Mark Present
-        cursor.execute("""
-            INSERT INTO attendance (rollNumber, studentName, department, date, timeIn, timeOut, status, markedBy)
-            VALUES (%s, %s, %s, %s, %s, 'Pending', 'Present', 'Manual')
-            ON CONFLICT(rollNumber, date, markedBy) DO UPDATE SET status='Present', timeIn=%s, markedBy='Manual'
-        """, (roll_number, full_name, dept, payload.date, time_str, time_str))
-    else:
-        # Mark Absent
-        cursor.execute("""
-            INSERT INTO attendance (rollNumber, studentName, department, date, timeIn, timeOut, status, markedBy)
-            VALUES (%s, %s, %s, %s, '-', '-', 'Absent', 'Manual')
-            ON CONFLICT(rollNumber, date, markedBy) DO UPDATE SET status='Absent', timeIn='-', timeOut='-', markedBy='Manual'
-        """, (roll_number, full_name, dept, payload.date))
+        cursor.execute("SELECT rollnumber, fullname, department FROM students WHERE id = %s", (payload.studentId,))
+        student_row = cursor.fetchone()
+        if not student_row:
+            raise HTTPException(status_code=404, detail="Student not found")
+            
+        student = row_to_dict(student_row)
+        roll_number = student["rollNumber"]
+        full_name = student["fullName"]
+        dept = student["department"]
         
-    conn.commit()
-    conn.close()
+        # Save high precision UTC ISO timestamp for manual marking
+        utc_now_iso = get_utc_now().isoformat()
+        
+        if payload.status:
+            # Mark Present
+            cursor.execute("""
+                INSERT INTO attendance (rollnumber, studentname, department, date, timein, timeout, status, markedby)
+                VALUES (%s, %s, %s, %s, %s, 'Pending', 'Present', 'Manual')
+                ON CONFLICT(rollnumber, date, markedby) DO UPDATE SET status='Present', timein=%s, markedby='Manual'
+            """, (roll_number, full_name, dept, payload.date, utc_now_iso, utc_now_iso))
+        else:
+            # Mark Absent
+            cursor.execute("""
+                INSERT INTO attendance (rollnumber, studentname, department, date, timein, timeout, status, markedby)
+                VALUES (%s, %s, %s, %s, '-', '-', 'Absent', 'Manual')
+                ON CONFLICT(rollnumber, date, markedby) DO UPDATE SET status='Absent', timein='-', timeout='-', markedby='Manual'
+            """, (roll_number, full_name, dept, payload.date))
+            
+        conn.commit()
     return {"success": True}
 
 @app.get("/api/student/attendance", dependencies=[Depends(require_role(["student"]))])
 async def get_student_attendance(current_user: dict = Depends(get_current_user)):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT id, rollnumber, studentname, department, date, timein, timeout, status, markedby
-        FROM attendance
-        WHERE rollnumber = %s
-        ORDER BY date DESC
-    """, (current_user["referenceId"],))
-    rows = cursor.fetchall()
-    conn.close()
+    with db_session() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, rollnumber, studentname, department, date, timein, timeout, status, markedby
+            FROM attendance
+            WHERE rollnumber = %s
+            ORDER BY date DESC
+        """, (current_user["referenceId"],))
+        rows = cursor.fetchall()
     
     logs = []
     for r in rows:
         d = row_to_dict(r)
+        
+        # Local timezone formatting for presentation
+        time_in_local = format_utc_to_local_time(d["timeIn"])
+        time_out_local = format_utc_to_local_time(d["timeOut"])
+        # If timeIn is a UTC timestamp, extract local date, else fall back to stored date column
+        date_local = format_utc_to_local_date(d["timeIn"]) if d["timeIn"] not in ["-", "Pending"] else d["date"]
+        
         logs.append({
             "key": str(d["id"]),
             "id": d["id"],
-            "date": d["date"],
-            "timeIn": d["timeIn"],
-            "timeOut": d["timeOut"],
+            "date": date_local,
+            "timeIn": time_in_local,
+            "timeOut": time_out_local,
             "status": d["status"],
             "type": d["markedBy"]
         })
@@ -938,20 +1018,17 @@ async def get_student_attendance(current_user: dict = Depends(get_current_user))
 
 @app.delete("/api/attendance/{record_id}", dependencies=[Depends(require_role(["admin", "teacher"]))])
 async def delete_attendance(record_id: str):
-    conn = get_db_connection()
-    cursor = conn.cursor()
     if record_id.startswith("absent-"):
-        conn.close()
         return {"success": True}
         
-    try:
-        rid = int(record_id)
-        cursor.execute("DELETE FROM attendance WHERE id = %s", (rid,))
-        conn.commit()
-    except ValueError:
-        pass
-    finally:
-        conn.close()
+    with db_session() as conn:
+        cursor = conn.cursor()
+        try:
+            rid = int(record_id)
+            cursor.execute("DELETE FROM attendance WHERE id = %s", (rid,))
+            conn.commit()
+        except ValueError:
+            pass
     return {"success": True}
 
 # ─── Reports and Exports ─────────────────────────────────────
@@ -961,96 +1038,98 @@ async def get_reports_stats(
     end_date: Optional[str] = None
 ):
     if not start_date:
-        start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+        start_date = (datetime.now(LOCAL_TZ) - timedelta(days=30)).strftime("%Y-%m-%d")
     if not end_date:
-        end_date = datetime.now().strftime("%Y-%m-%d")
+        end_date = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
         
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # 1. Total Active Students
-    cursor.execute("SELECT COUNT(*) FROM students WHERE status = 'Active'")
-    total_students = cursor.fetchone()[0]
-    
-    # 2. Total Present/Absent logs in range
-    cursor.execute("""
-        SELECT status, COUNT(*) 
-        FROM attendance 
-        WHERE date >= %s AND date <= %s
-        GROUP BY status
-    """, (start_date, end_date))
-    logs = cursor.fetchall()
-    
-    total_present = 0
-    total_absent = 0
-    for r in logs:
-        if r["status"] == "Present":
-            total_present = r["count"]
-        elif r["status"] == "Absent":
-            total_absent = r["count"]
-            
-    # Calculate average attendance percentage in range
-    total_records = total_present + total_absent
-    avg_attendance = round((total_present / total_records * 100), 1) if total_records > 0 else 0.0
-    
-    # 3. Department Wise Stats
-    cursor.execute("SELECT DISTINCT department FROM students WHERE status = 'Active'")
-    depts = [r["department"] for r in cursor.fetchall() if r["department"]]
-    
-    dept_stats = []
-    for dept in depts:
-        cursor.execute("SELECT COUNT(*) FROM students WHERE department = %s AND status = 'Active'", (dept,))
-        dept_total = cursor.fetchone()[0]
+    with db_session() as conn:
+        cursor = conn.cursor()
         
+        # 1. Total Active Students
+        cursor.execute("SELECT COUNT(*) FROM students WHERE status = 'Active'")
+        total_students = cursor.fetchone()[0]
+        
+        # Get UTC ranges for date queries
+        utc_start, _ = get_utc_range_for_local_date(start_date)
+        _, utc_end = get_utc_range_for_local_date(end_date)
+        
+        # 2. Total Present/Absent logs in range
         cursor.execute("""
             SELECT status, COUNT(*) 
             FROM attendance 
-            WHERE department = %s AND date >= %s AND date <= %s
+            WHERE (date >= %s AND date <= %s) OR (timein >= %s AND timein <= %s)
             GROUP BY status
-        """, (dept, start_date, end_date))
-        dept_logs = cursor.fetchall()
+        """, (start_date, end_date, utc_start, utc_end))
+        logs = cursor.fetchall()
         
-        d_present = 0
-        d_absent = 0
-        for r in dept_logs:
+        total_present = 0
+        total_absent = 0
+        for r in logs:
             if r["status"] == "Present":
-                d_present = r["count"]
+                total_present = r["count"]
             elif r["status"] == "Absent":
-                d_absent = r["count"]
+                total_absent = r["count"]
                 
-        d_records = d_present + d_absent
-        d_pct = round((d_present / d_records * 100), 1) if d_records > 0 else 0.0
+        # Calculate average attendance percentage in range
+        total_records = total_present + total_absent
+        avg_attendance = round((total_present / total_records * 100), 1) if total_records > 0 else 0.0
         
-        dept_stats.append({
-            "name": dept,
-            "totalStudents": dept_total,
-            "present": d_present,
-            "absent": d_absent,
-            "percentage": d_pct
-        })
+        # 3. Department Wise Stats
+        cursor.execute("SELECT DISTINCT department FROM students WHERE status = 'Active'")
+        depts = [r["department"] for r in cursor.fetchall() if r["department"]]
         
-    # 4. Daily attendance trend overview for graph (last 10 active days or daily within range)
-    cursor.execute("""
-        SELECT date, 
-               SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) as present,
-               COUNT(*) as total
-        FROM attendance
-        WHERE date >= %s AND date <= %s
-        GROUP BY date
-        ORDER BY date ASC
-    """, (start_date, end_date))
-    daily_rows = cursor.fetchall()
-    
-    trend = []
-    for r in daily_rows:
-        pct = round((r["present"] / r["total"] * 100), 1) if r["total"] > 0 else 0.0
-        trend.append({
-            "date": datetime.strptime(r["date"], "%Y-%m-%d").strftime("%d %b") if r["date"] else "-",
-            "value": pct
-        })
+        dept_stats = []
+        for dept in depts:
+            cursor.execute("SELECT COUNT(*) FROM students WHERE department = %s AND status = 'Active'", (dept,))
+            dept_total = cursor.fetchone()[0]
+            
+            cursor.execute("""
+                SELECT status, COUNT(*) 
+                FROM attendance 
+                WHERE department = %s AND ((date >= %s AND date <= %s) OR (timein >= %s AND timein <= %s))
+                GROUP BY status
+            """, (dept, start_date, end_date, utc_start, utc_end))
+            dept_logs = cursor.fetchall()
+            
+            d_present = 0
+            d_absent = 0
+            for r in dept_logs:
+                if r["status"] == "Present":
+                    d_present = r["count"]
+                elif r["status"] == "Absent":
+                    d_absent = r["count"]
+                    
+            d_records = d_present + d_absent
+            d_pct = round((d_present / d_records * 100), 1) if d_records > 0 else 0.0
+            
+            dept_stats.append({
+                "name": dept,
+                "totalStudents": dept_total,
+                "present": d_present,
+                "absent": d_absent,
+                "percentage": d_pct
+            })
+            
+        # 4. Daily attendance trend overview for graph (last 10 active days or daily within range)
+        cursor.execute("""
+            SELECT date, 
+                   SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) as present,
+                   COUNT(*) as total
+            FROM attendance
+            WHERE (date >= %s AND date <= %s) OR (timein >= %s AND timein <= %s)
+            GROUP BY date
+            ORDER BY date ASC
+        """, (start_date, end_date, utc_start, utc_end))
+        daily_rows = cursor.fetchall()
         
-    conn.close()
-    
+        trend = []
+        for r in daily_rows:
+            pct = round((r["present"] / r["total"] * 100), 1) if r["total"] > 0 else 0.0
+            trend.append({
+                "date": datetime.strptime(r["date"], "%Y-%m-%d").strftime("%d %b") if r["date"] else "-",
+                "value": pct
+            })
+            
     return {
         "totalStudents": total_students,
         "avgAttendance": f"{avg_attendance}%",
@@ -1068,36 +1147,37 @@ async def export_attendance_report(
     end_date: Optional[str] = None,
     format: Optional[str] = "csv"
 ):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    query = """
-        SELECT s.rollNumber, s.fullName, s.department, s.semester, 
-               a.date, a.timeIn, a.timeOut, a.status, a.markedBy
-        FROM students s
-        LEFT JOIN attendance a ON s.rollNumber = a.rollNumber
-        WHERE 1=1
-    """
-    params = []
-    if department:
-        query += " AND s.department = %s"
-        params.append(department)
-    if semester:
-        query += " AND s.semester = %s"
-        params.append(semester)
-    if start_date:
-        query += " AND a.date >= %s"
-        params.append(start_date)
-    if end_date:
-        query += " AND a.date <= %s"
-        params.append(end_date)
+    with db_session() as conn:
+        cursor = conn.cursor()
         
-    query += " ORDER BY a.date DESC, s.rollNumber ASC"
-    
-    cursor.execute(query, params)
-    rows = cursor.fetchall()
-    conn.close()
-    
+        query = """
+            SELECT s.rollNumber, s.fullName, s.department, s.semester, 
+                   a.date, a.timeIn, a.timeOut, a.status, a.markedBy
+            FROM students s
+            LEFT JOIN attendance a ON s.rollNumber = a.rollNumber
+            WHERE 1=1
+        """
+        params = []
+        if department:
+            query += " AND s.department = %s"
+            params.append(department)
+        if semester:
+            query += " AND s.semester = %s"
+            params.append(semester)
+        if start_date:
+            utc_start_range, _ = get_utc_range_for_local_date(start_date)
+            query += " AND (a.date >= %s OR a.timeIn >= %s)"
+            params.extend([start_date, utc_start_range])
+        if end_date:
+            _, utc_end_range = get_utc_range_for_local_date(end_date)
+            query += " AND (a.date <= %s OR a.timeIn <= %s)"
+            params.extend([end_date, utc_end_range])
+            
+        query += " ORDER BY a.date DESC, s.rollNumber ASC"
+        
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        
     if format == "xlsx":
         import pandas as pd
         from io import BytesIO
@@ -1105,14 +1185,19 @@ async def export_attendance_report(
         
         data = []
         for r in rows:
+            # Format to local time
+            time_in_local = format_utc_to_local_time(r["timein"])
+            time_out_local = format_utc_to_local_time(r["timeout"])
+            date_local = format_utc_to_local_date(r["timein"]) if r["timein"] not in ["-", "Pending", None] else r["date"]
+            
             data.append({
                 "Roll Number": r["rollnumber"],
                 "Full Name": r["fullname"],
                 "Department": r["department"],
                 "Semester": f"Semester {r['semester']}" if r["semester"] else "-",
-                "Date": r["date"] or "-",
-                "Time In": r["timein"] or "-",
-                "Time Out": r["timeout"] or "-",
+                "Date": date_local or "-",
+                "Time In": time_in_local or "-",
+                "Time Out": time_out_local or "-",
                 "Status": r["status"] or "Absent",
                 "Marked By": r["markedby"] or "-"
             })
@@ -1197,14 +1282,19 @@ async def export_attendance_report(
         ])
         
         for r in rows:
+            # Format to local time
+            time_in_local = format_utc_to_local_time(r["timein"])
+            time_out_local = format_utc_to_local_time(r["timeout"])
+            date_local = format_utc_to_local_date(r["timein"]) if r["timein"] not in ["-", "Pending", None] else r["date"]
+            
             writer.writerow([
                 r["rollnumber"],
                 r["fullname"],
                 r["department"],
                 f"Semester {r['semester']}" if r["semester"] else "-",
-                r["date"] or "-",
-                r["timein"] or "-",
-                r["timeout"] or "-",
+                date_local or "-",
+                time_in_local or "-",
+                time_out_local or "-",
                 r["status"] or "Absent",
                 r["markedby"] or "-"
             ])
@@ -1222,11 +1312,10 @@ async def export_attendance_report(
 
 @app.get("/api/attendance/sessions", dependencies=[Depends(require_role(["admin", "teacher", "student"]))])
 async def get_active_sessions():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT classcode, classname, isactive FROM active_sessions ORDER BY classcode")
-    rows = cursor.fetchall()
-    conn.close()
+    with db_session() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT classcode, classname, isactive FROM active_sessions ORDER BY classcode")
+        rows = cursor.fetchall()
     
     sessions = []
     for r in rows:
@@ -1239,42 +1328,48 @@ async def get_active_sessions():
 
 @app.post("/api/attendance/sessions/toggle", dependencies=[Depends(require_role(["admin", "teacher"]))])
 async def toggle_active_session(payload: ToggleSessionRequest):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE active_sessions
-        SET isactive = %s
-        WHERE classcode = %s
-    """, (payload.active, payload.classCode))
-    conn.commit()
-    conn.close()
+    with db_session() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE active_sessions
+            SET isactive = %s
+            WHERE classcode = %s
+        """, (payload.active, payload.classCode))
+        conn.commit()
     return {"success": True}
 
 # ─── Live Webcam Scan API ─────────────────────────────────────
 @app.post("/api/attendance/scan")
 async def scan_attendance(request: ScanRequest, current_user: Optional[dict] = Depends(get_current_user_optional)):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
+    # Phase 1: Quick DB check — is the session active? Release connection immediately.
     if request.classCode:
-        cursor.execute("SELECT isactive FROM active_sessions WHERE classcode = %s", (request.classCode,))
-        row = cursor.fetchone()
-        if not row or not row["isactive"]:
-            conn.close()
-            raise HTTPException(status_code=400, detail="Attendance window is closed for this class.")
+        with db_session() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT isactive FROM active_sessions WHERE classcode = %s", (request.classCode,))
+            row = cursor.fetchone()
+            if not row or not row["isactive"]:
+                raise HTTPException(status_code=400, detail="Attendance window is closed for this class.")
 
+    # Phase 2: CPU-heavy OpenCV inference — NO DB connection held
     frame = decode_base64_image(request.image)
     if frame is None:
-        conn.close()
         return {"faces": []}
 
-    embedding, box, is_live = extract_face_embedding(frame)
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    time_str = datetime.now().strftime("%I:%M:%S %p")
+    embedding, box, is_live = await run_in_threadpool(extract_face_embedding, frame)
     
     updated_faces = []
     
-    if embedding:
+    if not embedding:
+        return {"faces": updated_faces}
+
+    # Phase 3: Quick DB match + insert — short-lived connection
+    with db_session() as conn:
+        cursor = conn.cursor()
+        
+        # Consistent Timezone Handling: Determine today's date in local time
+        today_local = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
+        utc_start, utc_end = get_utc_range_for_local_date(today_local)
+        
         cursor.execute("""
             SELECT rollnumber, fullname, department, (embedding <=> %s::vector) AS distance 
             FROM students 
@@ -1292,7 +1387,8 @@ async def scan_attendance(request: ScanRequest, current_user: Optional[dict] = D
             "distance": 1.0
         }
 
-        if match and match["distance"] < 0.40:
+        # Configurable Biometrics: Move threshold to env variable
+        if match and match["distance"] < FACE_MATCH_THRESHOLD:
             roll = match["rollnumber"]
             friendly_name = match["fullname"]
             dept = match["department"]
@@ -1310,97 +1406,101 @@ async def scan_attendance(request: ScanRequest, current_user: Optional[dict] = D
                         face_info["is_live"] = False
                         face_info["name"] = f"Mismatch: {friendly_name}"
                         updated_faces.append(face_info)
-                        conn.close()
                         return {"faces": updated_faces}
                 
                 marked_by_str = f"Webcam ({request.classCode})" if request.classCode else "Webcam"
+                
+                # Timezone-safe checks using date and UTC range
                 cursor.execute("""
                     SELECT COUNT(*) FROM attendance 
-                    WHERE rollNumber = %s AND date = %s AND markedBy = %s AND status = 'Present'
-                """, (roll, today_str, marked_by_str))
+                    WHERE rollNumber = %s 
+                      AND (date = %s OR (timeIn >= %s AND timeIn <= %s))
+                      AND markedBy = %s AND status = 'Present'
+                """, (roll, today_local, utc_start, utc_end, marked_by_str))
                 
                 if cursor.fetchone()[0] == 0:
+                    # Force UTC timestamp internally
+                    utc_now_iso = get_utc_now().isoformat()
                     cursor.execute("""
                         INSERT INTO attendance (rollNumber, studentName, department, date, timeIn, timeOut, status, markedBy)
                         VALUES (%s, %s, %s, %s, %s, 'Pending', 'Present', %s)
                         ON CONFLICT(rollNumber, date, markedBy) DO UPDATE SET status='Present', timeIn=%s, markedBy=%s
-                    """, (roll, friendly_name, dept, today_str, time_str, marked_by_str, time_str, marked_by_str))
+                    """, (roll, friendly_name, dept, today_local, utc_now_iso, marked_by_str, utc_now_iso, marked_by_str))
                     conn.commit()
                     face_info["marked"] = True
                 
         updated_faces.append(face_info)
         
-    conn.close()
     return {"faces": updated_faces}
+
 
 # ─── Reports Analytics Summary ─────────────────────────────────
 @app.get("/api/reports/summary", dependencies=[Depends(require_role(["admin", "teacher"]))])
 async def get_reports_summary():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # 1. Department attendance distributions
-    cursor.execute("SELECT department, COUNT(*) FROM students GROUP BY department")
-    dept_totals = {r[0]: r[1] for r in cursor.fetchall()}
-    
-    cursor.execute("""
-        SELECT department, COUNT(*) 
-        FROM attendance 
-        WHERE status = 'Present' 
-        GROUP BY department
-    """)
-    dept_presents = {r[0]: r[1] for r in cursor.fetchall()}
-    
-    cursor.execute("""
-        SELECT department, COUNT(*) 
-        FROM attendance 
-        WHERE status = 'Absent' 
-        GROUP BY department
-    """)
-    dept_absents = {r[0]: r[1] for r in cursor.fetchall()}
-    
-    department_stats = []
-    for dept, total in dept_totals.items():
-        pres = dept_presents.get(dept, 0)
-        absn = dept_absents.get(dept, 0)
-        denom = max(1, pres + absn)
-        percentage = round((pres / denom) * 100, 1)
-        department_stats.append({
-            "name": dept,
-            "totalStudents": total,
-            "present": pres,
-            "absent": absn,
-            "percentage": percentage
-        })
+    with db_session() as conn:
+        cursor = conn.cursor()
         
-    # 2. General numbers
-    cursor.execute("SELECT COUNT(*) FROM students")
-    total_students = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT COUNT(*) FROM attendance WHERE status = 'Present'")
-    total_present = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT COUNT(*) FROM attendance WHERE status = 'Absent'")
-    total_absent = cursor.fetchone()[0]
-    
-    denom = max(1, total_present + total_absent)
-    avg_attendance = round((total_present / denom) * 100, 1)
-    
-    # 3. Weekly trend (last 7 days of logs)
-    cursor.execute("""
-        SELECT date, COUNT(case when status='Present' then 1 end) as present, COUNT(*) as total 
-        FROM attendance 
-        GROUP BY date 
-        ORDER BY date DESC LIMIT 7
-    """)
-    trend_raw = cursor.fetchall()
-    overview = []
-    for r in reversed(trend_raw):
-        dt = datetime.strptime(r[0], "%Y-%m-%d").strftime("%b %d")
-        rate = int((r[1] / max(1, r[2])) * 100)
-        overview.append({"date": dt, "value": rate})
+        # 1. Department attendance distributions
+        cursor.execute("SELECT department, COUNT(*) FROM students GROUP BY department")
+        dept_totals = {r[0]: r[1] for r in cursor.fetchall()}
         
-    conn.close()
+        cursor.execute("""
+            SELECT department, COUNT(*) 
+            FROM attendance 
+            WHERE status = 'Present' 
+            GROUP BY department
+        """)
+        dept_presents = {r[0]: r[1] for r in cursor.fetchall()}
+        
+        cursor.execute("""
+            SELECT department, COUNT(*) 
+            FROM attendance 
+            WHERE status = 'Absent' 
+            GROUP BY department
+        """)
+        dept_absents = {r[0]: r[1] for r in cursor.fetchall()}
+        
+        department_stats = []
+        for dept, total in dept_totals.items():
+            pres = dept_presents.get(dept, 0)
+            absn = dept_absents.get(dept, 0)
+            denom = max(1, pres + absn)
+            percentage = round((pres / denom) * 100, 1)
+            department_stats.append({
+                "name": dept,
+                "totalStudents": total,
+                "present": pres,
+                "absent": absn,
+                "percentage": percentage
+            })
+            
+        # 2. General numbers
+        cursor.execute("SELECT COUNT(*) FROM students")
+        total_students = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM attendance WHERE status = 'Present'")
+        total_present = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM attendance WHERE status = 'Absent'")
+        total_absent = cursor.fetchone()[0]
+        
+        denom = max(1, total_present + total_absent)
+        avg_attendance = round((total_present / denom) * 100, 1)
+        
+        # 3. Weekly trend (last 7 days of logs)
+        cursor.execute("""
+            SELECT date, COUNT(case when status='Present' then 1 end) as present, COUNT(*) as total 
+            FROM attendance 
+            GROUP BY date 
+            ORDER BY date DESC LIMIT 7
+        """)
+        trend_raw = cursor.fetchall()
+        overview = []
+        for r in reversed(trend_raw):
+            dt = datetime.strptime(r[0], "%Y-%m-%d").strftime("%b %d")
+            rate = int((r[1] / max(1, r[2])) * 100)
+            overview.append({"date": dt, "value": rate})
+            
     return {
         "totalStudents": total_students,
         "averageAttendance": avg_attendance,

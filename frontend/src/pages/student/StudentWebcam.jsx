@@ -13,17 +13,24 @@ export default function StudentWebcam() {
 
   const [selectedClass, setSelectedClass] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
+  const [scanWarning, setScanWarning] = useState(null);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
+  const scanningRef = useRef(false);
+  const selectedClassRef = useRef('');
+
+  // Keep ref in sync with state for use inside setInterval closure
+  useEffect(() => {
+    selectedClassRef.current = selectedClass;
+  }, [selectedClass]);
 
   // Monitor activeSessions to auto-close camera if selected class is disabled by teacher
   useEffect(() => {
     if (selectedClass) {
-      const code = selectedClass.split(':')[0];
-      if (!activeSessions.some(s => s.classCode === code)) {
+      if (activeSessions.length > 0 && !activeSessions.some(s => s.classCode === selectedClass)) {
         message.warning("The attendance window for this class has been closed by the faculty.");
         stopCamera();
         setSelectedClass('');
@@ -38,7 +45,7 @@ export default function StudentWebcam() {
     if (classCode && activeSessions.length > 0) {
       const matched = activeSessions.find(s => s.classCode === classCode);
       if (matched) {
-        setSelectedClass(`${matched.classCode}: ${matched.className}`);
+        setSelectedClass(matched.classCode);
       }
     }
   }, [activeSessions]);
@@ -55,6 +62,7 @@ export default function StudentWebcam() {
       });
       streamRef.current = stream;
       setCameraActive(true);
+      setScanWarning({ text: "No face detected in view", type: "warning" });
       
       // Allow DOM state update so videoRef is bound before assigning stream
       setTimeout(() => {
@@ -89,14 +97,17 @@ export default function StudentWebcam() {
       videoRef.current.srcObject = null;
     }
     setCameraActive(false);
+    setScanWarning(null);
   };
 
-  // Scanning loop when camera is active
+  // Scanning loop when camera is active — uses lock to prevent request pile-up
   useEffect(() => {
     if (cameraActive) {
       scanIntervalRef.current = setInterval(() => {
-        captureAndScan();
-      }, 800);
+        if (!scanningRef.current) {
+          captureAndScan();
+        }
+      }, 1200);
     } else {
       if (scanIntervalRef.current) {
         clearInterval(scanIntervalRef.current);
@@ -108,9 +119,15 @@ export default function StudentWebcam() {
   }, [cameraActive]);
 
   const captureAndScan = async () => {
+    if (scanningRef.current) return;
+    scanningRef.current = true;
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+    if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      scanningRef.current = false;
+      return;
+    }
 
     const width = video.videoWidth;
     const height = video.videoHeight;
@@ -127,11 +144,13 @@ export default function StudentWebcam() {
     const base64Frame = tempCanvas.toDataURL('image/jpeg', 0.85);
 
     try {
-      const classCode = selectedClass.split(':')[0];
+      const classCode = selectedClassRef.current;
       const res = await attendanceAPI.scanFace(base64Frame, classCode);
       ctx.clearRect(0, 0, width, height);
 
       if (res && res.faces && res.faces.length > 0) {
+        let primaryWarning = null;
+
         res.faces.forEach(face => {
           const [x, y, w, h] = face.box;
           const name = face.name;
@@ -174,23 +193,27 @@ export default function StudentWebcam() {
           ctx.fillStyle = '#ffffff';
           ctx.fillText(text, x + 6, y - 8);
 
-          // Handle identity mismatch
+          // Realtime warnings setup
           if (!identity_verified) {
-            message.error(`Identity Mismatch: Scanned face is registered as ${name.replace('Mismatch: ', '')}, which does not match your profile.`);
-            stopCamera();
-            setSelectedClass('');
-            return;
+            primaryWarning = { text: `Identity Mismatch: Another person's face visible`, type: "error" };
+          } else if (!is_live && name !== 'Unknown') {
+            primaryWarning = { text: "Spoof Warning: Biometric liveness check failed!", type: "error" };
+          } else if (name === 'Unknown') {
+            primaryWarning = { text: "Face not recognized in database", type: "warning" };
           }
 
           // Auto mark if recognized and live
           if (name !== 'Unknown' && is_live && identity_verified) {
             // Check if already marked for this class session in local UI state
-            const classCode = selectedClass.split(':')[0];
-            const todayStr = new Date().toISOString().split('T')[0];
-            const alreadyMarked = logs.some(l => l.date === todayStr && l.type.includes(classCode));
+            const localDate = new Date();
+            const year = localDate.getFullYear();
+            const month = String(localDate.getMonth() + 1).padStart(2, '0');
+            const day = String(localDate.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+            const alreadyMarked = logs.some(l => l.date === todayStr && l.type && l.type.includes(classCode));
 
-            if (alreadyMarked) {
-              message.warning(`Attendance already logged for ${classCode} today!`);
+            if (alreadyMarked || !face.marked) {
+              primaryWarning = { text: `Attendance already logged for ${classCode} today!`, type: "warning" };
               stopCamera();
               setSelectedClass('');
               return;
@@ -210,11 +233,15 @@ export default function StudentWebcam() {
             setPresentCount(prev => prev + 1);
             setTotalClasses(prev => prev + 1);
 
-            message.success(`Face biometric verified! Attendance logged for ${name}.`);
+            message.success("Attendance marked successfully");
             stopCamera();
             setSelectedClass('');
           }
         });
+
+        setScanWarning(primaryWarning);
+      } else {
+        setScanWarning({ text: "No face detected in view", type: "warning" });
       }
     } catch (err) {
       console.error(err);
@@ -223,7 +250,11 @@ export default function StudentWebcam() {
         message.error("Attendance window has been closed! Stopping scan.");
         stopCamera();
         setSelectedClass('');
+      } else {
+        setScanWarning({ text: "Connection error with scanner", type: "error" });
       }
+    } finally {
+      scanningRef.current = false;
     }
   };
 
@@ -261,7 +292,7 @@ export default function StudentWebcam() {
                   onChange={setSelectedClass}
                 >
                   {activeSessions.map((s) => (
-                    <Option key={s.classCode} value={`${s.classCode}: ${s.className}`}>{s.className}</Option>
+                    <Option key={s.classCode} value={s.classCode}>{s.className}</Option>
                   ))}
                 </Select>
               </>
@@ -277,7 +308,7 @@ export default function StudentWebcam() {
               size="large"
               icon={<VideoCameraOutlined />}
               onClick={handleStartCamera}
-              disabled={!selectedClass || activeSessions.length === 0}
+              disabled={!selectedClass || activeSessions.length === 0 || !activeSessions.some(s => s.classCode === selectedClass)}
               style={{ width: '100%', height: 48, background: 'var(--text-primary)', color: 'var(--bg-primary)', fontWeight: 600, borderRadius: 8, marginTop: 16, border: 'none' }}
             >
               Enter Classroom & Start Scan
@@ -286,9 +317,16 @@ export default function StudentWebcam() {
         ) : (
           <div className="webcam-scan-container">
             <div className="scan-header-text" style={{ marginBottom: 12, fontSize: 15, color: 'var(--text-primary)' }}>
-              Classroom Session: <strong>{selectedClass}</strong>
+              Classroom Session: <strong>{activeSessions.find(s => s.classCode === selectedClass)?.className || selectedClass}</strong>
             </div>
 
+            <style>{`
+              @keyframes scan-pulse {
+                0% { opacity: 0.85; transform: scale(1); }
+                50% { opacity: 1; transform: scale(1.03); }
+                100% { opacity: 0.85; transform: scale(1); }
+              }
+            `}</style>
             <div style={{ position: 'relative', width: '100%', height: 400, background: '#09090b', borderRadius: 12, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20, border: '1px solid var(--border-color)' }}>
               {/* HTML5 Video Element */}
               <video 
@@ -302,9 +340,35 @@ export default function StudentWebcam() {
                 ref={canvasRef}
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10 }}
               />
-              <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(9,9,11,0.85)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: 20, color: '#fff', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <ScanOutlined style={{ color: '#10b981' }} />
-                Scanning for biometric presence...
+              <div style={{ 
+                position: 'absolute', 
+                top: 12, 
+                left: 12, 
+                right: 12,
+                display: 'flex',
+                justifyContent: 'space-between',
+                pointerEvents: 'none',
+                zIndex: 11
+              }}>
+                <div style={{ background: 'rgba(9,9,11,0.85)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: 20, color: '#fff', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <ScanOutlined style={{ color: '#10b981' }} />
+                  Scanning for biometric presence...
+                </div>
+                {scanWarning && (
+                  <div style={{ 
+                    background: scanWarning.type === 'error' ? 'rgba(239,68,68,0.9)' : 'rgba(245,158,11,0.9)', 
+                    border: scanWarning.type === 'error' ? '1px solid #ef4444' : '1px solid #f59e0b', 
+                    padding: '6px 14px', 
+                    borderRadius: 20, 
+                    color: '#fff', 
+                    fontSize: 12, 
+                    fontWeight: 600,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    animation: 'scan-pulse 1.5s infinite ease-in-out' 
+                  }}>
+                    {scanWarning.text}
+                  </div>
+                )}
               </div>
             </div>
 

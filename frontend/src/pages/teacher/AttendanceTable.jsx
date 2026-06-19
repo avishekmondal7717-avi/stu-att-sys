@@ -61,8 +61,42 @@ const AttendanceTable = () => {
   const absent = filtered.filter((r) => r.status === 'Absent').length;
   const total = filtered.length;
 
-  const handleExport = () => {
-    message.success('Exporting to Excel...');
+  const handleExport = async () => {
+    try {
+      const formattedDate = date.format('YYYY-MM-DD');
+      const token = localStorage.getItem("token");
+      const query = new URLSearchParams({
+        department: filterDept || '',
+        semester: filterSem || '',
+        start_date: formattedDate,
+        end_date: formattedDate,
+        format: 'xlsx'
+      }).toString();
+
+      message.loading({ content: 'Generating Excel report...', key: 'export' });
+      
+      const response = await fetch(`/api/reports/export?${query}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) throw new Error("Export failed");
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `attendance_report_${date.format('YYYYMMDD')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      
+      message.success({ content: 'Excel export download started!', key: 'export' });
+    } catch (err) {
+      console.error(err);
+      message.error({ content: 'Failed to export report to Excel', key: 'export' });
+    }
   };
 
   const columns = [

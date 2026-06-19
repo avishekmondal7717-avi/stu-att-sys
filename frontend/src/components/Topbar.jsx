@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Menu, Bell, ChevronDown, Sun, Moon } from 'lucide-react';
 import './Topbar.css';
 
-export default function Topbar({ onToggleSidebar, theme, setTheme }) {
+export default function Topbar({ onToggleSidebar, theme, setTheme, activeSessions = [] }) {
+  const navigate = useNavigate();
   const userFullName = localStorage.getItem("userFullName") || "User";
   const userRole = localStorage.getItem("userRole") || "Role";
   const initial = userFullName.charAt(0).toUpperCase();
@@ -11,30 +13,20 @@ export default function Topbar({ onToggleSidebar, theme, setTheme }) {
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
   const userPhoto = currentUser ? currentUser.photo : null;
 
-  const [activeCount, setActiveCount] = useState(0);
+  const activeCount = activeSessions.length;
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
 
   useEffect(() => {
-    if (userRole !== 'student') return;
-    const fetchActiveCount = async () => {
-      try {
-        const response = await fetch('/api/attendance/sessions', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem("token")}`
-          }
-        });
-        if (response.ok) {
-          const res = await response.json();
-          const active = (res.sessions || []).filter(s => s.isActive);
-          setActiveCount(active.length);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchActiveCount();
-    const interval = setInterval(fetchActiveCount, 5000);
-    return () => clearInterval(interval);
-  }, [userRole]);
+    if (!notifDropdownOpen) return;
+    const handleClose = () => setNotifDropdownOpen(false);
+    window.addEventListener('click', handleClose);
+    return () => window.removeEventListener('click', handleClose);
+  }, [notifDropdownOpen]);
+
+  const toggleDropdown = (e) => {
+    e.stopPropagation();
+    setNotifDropdownOpen(prev => !prev);
+  };
 
   return (
     <header className="topbar">
@@ -47,10 +39,45 @@ export default function Topbar({ onToggleSidebar, theme, setTheme }) {
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
         </button>
 
-        <button className="notif-btn">
-          <Bell size={20} />
-          {activeCount > 0 && <span className="notif-badge">{activeCount}</span>}
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button className="notif-btn" onClick={toggleDropdown} title="Notifications">
+            <Bell size={20} />
+            {activeCount > 0 && <span className="notif-badge">{activeCount}</span>}
+          </button>
+          
+          {notifDropdownOpen && (
+            <div className="notif-dropdown" onClick={(e) => e.stopPropagation()}>
+              <div className="notif-dropdown-header">
+                <h3>Notifications</h3>
+                {activeCount > 0 && <span className="notif-count-badge">{activeCount} active</span>}
+              </div>
+              <div className="notif-dropdown-body">
+                {activeSessions.length === 0 ? (
+                  <div className="notif-empty-state">
+                    <p>No active attendance sessions.</p>
+                  </div>
+                ) : (
+                  activeSessions.map((session) => (
+                    <div 
+                      key={session.classCode} 
+                      className="notif-item"
+                      onClick={() => {
+                        navigate(`/student/webcam?class=${session.classCode}`);
+                        setNotifDropdownOpen(false);
+                      }}
+                    >
+                      <div className="notif-item-icon">⏰</div>
+                      <div className="notif-item-content">
+                        <div className="notif-item-title">{session.className}</div>
+                        <div className="notif-item-desc">Attendance session is now live. Click to scan.</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="admin-profile">
           <div

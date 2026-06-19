@@ -156,7 +156,7 @@ export const attendanceAPI = {
     });
   },
   getSessions: async () => {
-    return request('/attendance/sessions');
+    return request(`/attendance/sessions?t=${Date.now()}`);
   },
   toggleSession: async (payload) => {
     // payload: { classCode: string, active: boolean }
@@ -180,6 +180,9 @@ export const reportsAPI = {
   getStats: async (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return request(`/reports/stats${query ? '?' + query : ''}`);
+  },
+  getSummary: async () => {
+    return request('/reports/summary');
   },
   getExportUrl: (params = {}) => {
     const query = new URLSearchParams(params).toString();

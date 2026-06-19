@@ -72,9 +72,6 @@ const TeacherRegister = () => {
   const validatePassword = (value) => {
     if (!value) return "Password is required.";
     if (value.length < 6) return "Password must be at least 6 characters.";
-    // eslint-disable-next-line no-useless-escape
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value))
-      return "Password must contain at least one special character (e.g. @, #, !).";
     return "";
   };
 

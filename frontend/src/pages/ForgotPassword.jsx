@@ -24,12 +24,8 @@ export default function ForgotPassword() {
   };
 
   const validateEmail = (value) => {
-    const localPart = value.split("@")[0];
-    const validDomains = ["@gmail.com", "@yahoo.com", "@outlook.com", "@hotmail.com"];
-    const hasValidDomain = validDomains.some((d) => value.endsWith(d));
     if (!value) return "Email is required.";
-    if (localPart.length < 6) return "Email must have at least 6 characters before @.";
-    if (!hasValidDomain) return "Email must end with @gmail.com, @yahoo.com, @outlook.com or @hotmail.com.";
+    if (!value.includes("@")) return "Please enter a valid email address.";
     return "";
   };
 

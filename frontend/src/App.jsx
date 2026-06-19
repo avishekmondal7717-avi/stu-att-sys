@@ -2,6 +2,7 @@ import { App as AntdApp, notification } from 'antd';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { attendanceAPI } from './services/api';
+import AntdGlobalHelper from './components/AntdGlobalHelper';
 import Login from './pages/Login';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
@@ -161,7 +162,7 @@ function StudentLayout() {
     <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${theme}`}>
       <StudentSidebar theme={theme} />
       <div className="main-area">
-        <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} theme={theme} setTheme={setTheme} />
+        <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} theme={theme} setTheme={setTheme} activeSessions={activeSessions} />
         <main className="page-content">
           <Outlet context={{ 
             logs, 
@@ -279,6 +280,7 @@ function HomeRedirect() {
 export default function App() {
   return (
     <AntdApp>
+      <AntdGlobalHelper />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomeRedirect />} />

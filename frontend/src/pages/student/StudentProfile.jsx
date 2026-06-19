@@ -107,7 +107,7 @@ export default function StudentProfile() {
           border-color: rgba(255, 255, 255, 0.08) !important;
         }
         .profile-header-bg {
-          height: 120px;
+          height: 150px;
           background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
           position: relative;
         }
@@ -190,7 +190,7 @@ export default function StudentProfile() {
 
         {/* Header content with avatar */}
         <div className="profile-header-content">
-          <Row gutter={[24, 24]} align="bottom">
+          <Row gutter={[24, 24]} align="middle">
             <Col xs={24} sm={6} style={{ display: 'flex', justifyContent: 'center' }}>
               <div className="profile-avatar-wrap">
                 <div className="profile-avatar-glow"></div>
@@ -199,17 +199,19 @@ export default function StudentProfile() {
                 </Avatar>
               </div>
             </Col>
-            <Col xs={24} sm={18} style={{ textAlign: 'left' }}>
-              <h2 style={{ margin: '0 0 6px 0', fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                {currentStudent.fullName}
-              </h2>
-              <p style={{ margin: '0 0 12px 0', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500 }}>
+            <Col xs={24} sm={18} style={{ textAlign: 'left', paddingBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: '6px' }}>
+                <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', textShadow: '0 2px 4px rgba(0,0,0,0.15)' }}>
+                  {currentStudent.fullName}
+                </h2>
+                <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(16, 185, 129, 0.25)', color: '#10b981', fontWeight: 600, padding: '4px 12px', borderRadius: '20px', fontSize: 11, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', marginRight: 6 }}></span>
+                  {currentStudent.status}
+                </span>
+              </div>
+              <p style={{ margin: 0, color: 'rgba(255, 255, 255, 0.9)', fontSize: 14, fontWeight: 600 }}>
                 Student ID: {currentStudent.rollNumber}
               </p>
-              <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontWeight: 600, padding: '6px 14px', borderRadius: '20px', fontSize: 12, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', marginRight: 8 }}></span>
-                Status: {currentStudent.status}
-              </span>
             </Col>
           </Row>
         </div>

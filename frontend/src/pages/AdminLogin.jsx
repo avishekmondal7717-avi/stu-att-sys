@@ -49,21 +49,13 @@ export default function AdminLogin() {
   }, [navigate]);
 
   const validateEmail = (value) => {
-    const localPart = value.split("@")[0];
-    const validDomains = ["@gmail.com", "@yahoo.com", "@outlook.com", "@hotmail.com", "@email.com"];
-    const hasValidDomain = validDomains.some((d) => value.endsWith(d));
     if (!value) return "Email is required.";
-    if (localPart.length < 3) return "Email must have at least 3 characters before @.";
-    if (!hasValidDomain) return "Email must end with @gmail.com, @yahoo.com, @outlook.com, @hotmail.com, or @email.com.";
+    if (!value.includes("@")) return "Please enter a valid email address.";
     return "";
   };
 
   const validatePassword = (value) => {
     if (!value) return "Password is required.";
-    if (value.length < 6) return "Password must be at least 6 characters.";
-    // eslint-disable-next-line no-useless-escape
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value))
-      return "Password must contain at least one special character (e.g. @, #, !).";
     return "";
   };
 
