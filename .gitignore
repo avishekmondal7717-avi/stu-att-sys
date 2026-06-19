@@ -12,6 +12,11 @@ venv/
 env/
 *.db
 backend/data/*.pkl
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+.pytest_cache/
+.coverage
+htmlcov/
 
 # OS files
 .DS_Store
@@ -20,3 +25,6 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+
+# Runtime output
+*.log

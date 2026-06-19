@@ -1,198 +1,261 @@
-import { useState, useEffect } from 'react';
-import { Row, Col, Table, Tag, Button, Select, DatePicker, Input, message, Popconfirm } from 'antd';
-import { SearchOutlined, FileExcelOutlined, CalendarOutlined, TeamOutlined, CheckCircleOutlined, CloseCircleOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Badge,
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Empty,
+  Input,
+  Modal,
+  Row,
+  Segmented,
+  Space,
+  Spin,
+  Table,
+  Tag,
+  message,
+} from 'antd';
+import {
+  CalendarOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  EyeOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  TeamOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import PageHeader from '../../components/common/PageHeader';
-import StatCard from '../../components/common/StatCard';
-import { DEPARTMENTS, SEMESTERS } from '../../data/dummyData';
 import { attendanceAPI } from '../../services/api';
+import './AttendanceTable.css';
 
-const { Option } = Select;
+const PERIODS = [
+  { label: 'Day', value: 'day' },
+  { label: 'Month', value: 'month' },
+  { label: 'Year', value: 'year' },
+];
 
 const AttendanceTable = () => {
-  const [date, setDate] = useState(dayjs());
-  const [filterDept, setFilterDept] = useState('');
-  const [filterSem, setFilterSem] = useState('');
-  const [search, setSearch] = useState('');
-  const [records, setRecords] = useState([]);
+  const [period, setPeriod] = useState('day');
+  const [anchorDate, setAnchorDate] = useState(dayjs());
+  const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [records, setRecords] = useState([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [search, setSearch] = useState('');
 
-  const userRole = localStorage.getItem('userRole');
-  const isAdmin = userRole === 'admin';
-
-  const loadAttendance = async () => {
+  const loadSessions = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await attendanceAPI.getByDate(date.format('YYYY-MM-DD'));
-      setRecords(res.data);
-    } catch (err) {
-      console.error(err);
-      message.error('Failed to load attendance records');
+      const response = await attendanceAPI.getSessionHistory({
+        period,
+        date: anchorDate.format('YYYY-MM-DD'),
+      });
+      setSessions(response.sessions || []);
+    } catch (error) {
+      console.error(error);
+      message.error(error.message || 'Failed to load attendance sessions');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDelete = async (recordId) => {
-    try {
-      await attendanceAPI.deleteRecord(recordId);
-      message.success('Attendance record deleted successfully');
-      loadAttendance();
-    } catch (err) {
-      console.error(err);
-      message.error('Failed to delete attendance record');
-    }
-  };
+  }, [anchorDate, period]);
 
   useEffect(() => {
-    loadAttendance();
-  }, [date]);
+    loadSessions();
+  }, [loadSessions]);
 
-  const filtered = records.filter((r) => {
-    const matchSearch = !search || 
-      r.studentName.toLowerCase().includes(search.toLowerCase()) || 
-      r.rollNumber.toLowerCase().includes(search.toLowerCase());
-    const matchDept = !filterDept || r.department === filterDept;
-    const matchSem = !filterSem || String(r.semester) === String(filterSem);
-    return matchSearch && matchDept && matchSem;
-  });
-
-  const present = filtered.filter((r) => r.status === 'Present').length;
-  const absent = filtered.filter((r) => r.status === 'Absent').length;
-  const total = filtered.length;
-
-  const handleExport = async () => {
+  const openSession = async (session) => {
+    setSelectedSession(session);
+    setDetailLoading(true);
+    setRecords([]);
     try {
-      const formattedDate = date.format('YYYY-MM-DD');
-      const token = localStorage.getItem("token");
-      const query = new URLSearchParams({
-        department: filterDept || '',
-        semester: filterSem || '',
-        start_date: formattedDate,
-        end_date: formattedDate,
-        format: 'xlsx'
-      }).toString();
-
-      message.loading({ content: 'Generating Excel report...', key: 'export' });
-      
-      const response = await fetch(`/api/reports/export?${query}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) throw new Error("Export failed");
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `attendance_report_${date.format('YYYYMMDD')}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      
-      message.success({ content: 'Excel export download started!', key: 'export' });
-    } catch (err) {
-      console.error(err);
-      message.error({ content: 'Failed to export report to Excel', key: 'export' });
+      const response = await attendanceAPI.getSessionDetail(session.id);
+      setSelectedSession(response.session);
+      setRecords(response.data || []);
+    } catch (error) {
+      console.error(error);
+      message.error(error.message || 'Failed to load session roster');
+      setSelectedSession(null);
+    } finally {
+      setDetailLoading(false);
     }
   };
 
+  const filteredRecords = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return records;
+    return records.filter((record) =>
+      record.studentName.toLowerCase().includes(needle)
+      || record.rollNumber.toLowerCase().includes(needle)
+    );
+  }, [records, search]);
+
+  const totals = useMemo(() => sessions.reduce((summary, session) => ({
+    students: summary.students + session.total,
+    present: summary.present + session.present,
+    absent: summary.absent + session.absent,
+  }), { students: 0, present: 0, absent: 0 }), [sessions]);
+
   const columns = [
-    { title: '#', key: 'index', width: 50, render: (_, __, i) => i + 1 },
-    { title: 'Roll Number', dataIndex: 'rollNumber', key: 'rollNumber', width: 130 },
+    { title: 'Roll Number', dataIndex: 'rollNumber', key: 'rollNumber', width: 140 },
     { title: 'Student Name', dataIndex: 'studentName', key: 'studentName' },
-    { title: 'Department', dataIndex: 'department', key: 'department' },
-    { title: 'Time In', dataIndex: 'timeIn', key: 'timeIn', width: 130 },
-    { title: 'Time Out', dataIndex: 'timeOut', key: 'timeOut', width: 130 },
+    { title: 'Stream', dataIndex: 'department', key: 'department' },
     {
-      title: 'Status', dataIndex: 'status', key: 'status', width: 100,
-      render: (s) => <Tag color={s === 'Present' ? 'success' : 'error'}>{s}</Tag>,
+      title: 'Semester',
+      dataIndex: 'semester',
+      key: 'semester',
+      width: 100,
+      render: (value) => `Sem ${value}`,
     },
-    { title: 'Marked By', dataIndex: 'markedBy', key: 'markedBy', width: 110 },
+    { title: 'Time In', dataIndex: 'timeIn', key: 'timeIn', width: 130 },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status) => (
+        <Tag color={status === 'Present' ? 'success' : 'error'}>{status}</Tag>
+      ),
+    },
+    { title: 'Verified By', dataIndex: 'markedBy', key: 'markedBy', width: 160 },
   ];
 
-  if (isAdmin) {
-    columns.push({
-      title: 'Action',
-      key: 'action',
-      width: 100,
-      render: (_, record) => {
-        const isAbsentRecord = String(record.id).startsWith('absent-');
-        return (
-          <Popconfirm
-            title="Delete this record?"
-            onConfirm={() => handleDelete(record.id)}
-            disabled={isAbsentRecord}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button 
-              type="text" 
-              danger 
-              icon={<DeleteOutlined />} 
-              size="small"
-              disabled={isAbsentRecord}
-            >
-              Delete
-            </Button>
-          </Popconfirm>
-        );
-      }
-    });
-  }
+  const picker = period === 'day' ? undefined : period;
+  const periodLabel = period === 'day'
+    ? anchorDate.format('DD MMM YYYY')
+    : period === 'month'
+      ? anchorDate.format('MMMM YYYY')
+      : anchorDate.format('YYYY');
 
   return (
     <div>
-      <PageHeader title="Attendance Table" breadcrumbs={[{ label: 'Attendance', path: '/attendance/table' }, { label: 'Attendance Table' }]} />
+      <PageHeader
+        title="Attendance Sessions"
+        subtitle="Classified by teacher, stream, semester, subject, and session"
+        breadcrumbs={[{ label: 'Attendance Sessions' }]}
+      />
 
-      <div style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <DatePicker value={date} onChange={setDate} format="DD MMM YYYY" style={{ width: 170 }} allowClear={false} />
-        <Select placeholder="All Departments" allowClear style={{ width: 180 }} value={filterDept || undefined} onChange={setFilterDept}>
-          {DEPARTMENTS.map((d) => <Option key={d} value={d}>{d}</Option>)}
-        </Select>
-        <Select placeholder="All Semesters" allowClear style={{ width: 150 }} value={filterSem || undefined} onChange={setFilterSem}>
-          {SEMESTERS.map((s) => <Option key={s} value={s}>Semester {s}</Option>)}
-        </Select>
-        <Input
-          prefix={<SearchOutlined style={{ color: '#ccc' }} />}
-          placeholder="Search by name or roll number..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ width: 240 }}
+      <div className="attendance-session-toolbar">
+        <Segmented options={PERIODS} value={period} onChange={setPeriod} />
+        <DatePicker
+          picker={picker}
+          value={anchorDate}
+          onChange={(value) => value && setAnchorDate(value)}
+          allowClear={false}
+          format={period === 'day' ? 'DD MMM YYYY' : period === 'month' ? 'MMMM YYYY' : 'YYYY'}
         />
-        <Button type="primary" icon={<SearchOutlined />} onClick={loadAttendance} style={{ background: '#1e40af' }}>Refresh</Button>
-        <Button icon={<FileExcelOutlined />} onClick={handleExport} style={{ background: '#16a34a', color: '#fff', borderColor: '#16a34a', marginLeft: 'auto' }}>
-          Export Excel
-        </Button>
+        <Button icon={<ReloadOutlined />} onClick={loadSessions}>Refresh</Button>
+        <span className="attendance-period-label">{periodLabel}</span>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={6}>
-          <StatCard icon={<TeamOutlined />} label="Total Students" value={total} iconBg="#eff6ff" iconColor="#3b82f6" />
-        </Col>
-        <Col xs={12} sm={6}>
-          <StatCard icon={<CheckCircleOutlined />} label="Present" value={`${present} (${total ? Math.round((present / total) * 100) : 0}%)`} iconBg="#f0fdf4" iconColor="#22c55e" />
-        </Col>
-        <Col xs={12} sm={6}>
-          <StatCard icon={<CloseCircleOutlined />} label="Absent" value={`${absent} (${total ? Math.round((absent / total) * 100) : 0}%)`} iconBg="#fef2f2" iconColor="#ef4444" />
-        </Col>
-        <Col xs={12} sm={6}>
-          <StatCard icon={<CalendarOutlined />} label="Attendance Date" value={date ? date.format('DD MMM YYYY') : '-'} iconBg="#f5f3ff" iconColor="#8b5cf6" />
-        </Col>
+      <Row gutter={[16, 16]} className="attendance-summary-row">
+        {[
+          ['Class Sessions', sessions.length, <CalendarOutlined />],
+          ['Roster Entries', totals.students, <TeamOutlined />],
+          ['Present', totals.present, <CheckCircleOutlined />],
+          ['Absent', totals.absent, <ClockCircleOutlined />],
+        ].map(([label, value, icon]) => (
+          <Col xs={12} lg={6} key={label}>
+            <Card size="small" className="attendance-summary-card">
+              <Space size={12}>
+                <span className="attendance-summary-icon">{icon}</span>
+                <span>
+                  <span className="attendance-summary-label">{label}</span>
+                  <strong className="attendance-summary-value">{value}</strong>
+                </span>
+              </Space>
+            </Card>
+          </Col>
+        ))}
       </Row>
 
-      <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-        <Table
-          columns={columns}
-          dataSource={filtered}
-          rowKey="rollNumber"
-          loading={loading}
-          pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (t, r) => `Showing ${r[0]} to ${r[1]} of ${t} entries` }}
-          size="middle"
-        />
-      </div>
+      <Spin spinning={loading}>
+        {sessions.length === 0 && !loading ? (
+          <Card className="attendance-empty-card">
+            <Empty description={`No class sessions found for ${periodLabel}`} />
+          </Card>
+        ) : (
+          <Row gutter={[16, 16]}>
+            {sessions.map((session) => {
+              const rate = session.total ? Math.round((session.present / session.total) * 100) : 0;
+              return (
+                <Col xs={24} md={12} xl={8} key={session.id}>
+                  <Card
+                    className="attendance-session-card"
+                    title={
+                      <Space>
+                        <span>{session.classCode}</span>
+                        <Badge status={session.isActive ? 'processing' : 'default'} text={session.isActive ? 'Live' : 'Closed'} />
+                      </Space>
+                    }
+                    extra={<Button type="text" icon={<EyeOutlined />} onClick={() => openSession(session)}>Open</Button>}
+                  >
+                    <h3>{session.className}</h3>
+                    <Space wrap className="attendance-session-tags">
+                      <Tag color="blue">{session.department}</Tag>
+                      <Tag>Semester {session.semester}</Tag>
+                      <Tag>{dayjs(session.date).format('DD MMM YYYY')}</Tag>
+                    </Space>
+                    <div className="attendance-session-time">
+                      <ClockCircleOutlined /> {dayjs(session.startedAt).format('hh:mm A')} by {session.teacherName}
+                    </div>
+                    <div className="attendance-session-counts">
+                      <span><strong>{session.total}</strong> Enrolled</span>
+                      <span className="present"><strong>{session.present}</strong> Present</span>
+                      <span className="absent"><strong>{session.absent}</strong> Absent</span>
+                    </div>
+                    <div className="attendance-rate-track">
+                      <span style={{ width: `${rate}%` }} />
+                    </div>
+                    <small>{rate}% attendance</small>
+                  </Card>
+                </Col>
+              );
+            })}
+          </Row>
+        )}
+      </Spin>
+
+      <Modal
+        open={!!selectedSession}
+        onCancel={() => {
+          setSelectedSession(null);
+          setSearch('');
+        }}
+        footer={null}
+        width={1050}
+        title={selectedSession ? `${selectedSession.classCode} - ${selectedSession.className}` : 'Session Roster'}
+      >
+        {selectedSession && (
+          <>
+            <Space wrap className="attendance-detail-meta">
+              <Tag color="blue">{selectedSession.department}</Tag>
+              <Tag>Semester {selectedSession.semester}</Tag>
+              <Tag>{dayjs(selectedSession.date).format('DD MMM YYYY')}</Tag>
+              <Tag color={selectedSession.isActive ? 'success' : 'default'}>
+                {selectedSession.isActive ? 'Live' : 'Closed'}
+              </Tag>
+            </Space>
+            <Input
+              prefix={<SearchOutlined />}
+              placeholder="Search this session by name or roll number"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="attendance-detail-search"
+            />
+            <Table
+              columns={columns}
+              dataSource={filteredRecords}
+              rowKey="rollNumber"
+              loading={detailLoading}
+              pagination={{ pageSize: 10, hideOnSinglePage: true }}
+              scroll={{ x: 850 }}
+            />
+          </>
+        )}
+      </Modal>
     </div>
   );
 };

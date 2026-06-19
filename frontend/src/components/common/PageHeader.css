@@ -1,0 +1,27 @@
+.page-breadcrumb,
+.page-breadcrumb a,
+.page-breadcrumb .ant-breadcrumb-link,
+.page-breadcrumb .ant-breadcrumb-separator {
+  color: var(--text-secondary) !important;
+  font-family: inherit;
+}
+
+.page-breadcrumb a:hover {
+  color: var(--text-primary) !important;
+}
+
+.page-breadcrumb-current {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.dark .page-breadcrumb,
+.dark .page-breadcrumb a,
+.dark .page-breadcrumb .ant-breadcrumb-link,
+.dark .page-breadcrumb .ant-breadcrumb-separator {
+  color: var(--text-secondary) !important;
+}
+
+.dark .page-breadcrumb-current {
+  color: var(--text-primary);
+}

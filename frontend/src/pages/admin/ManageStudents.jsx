@@ -132,12 +132,20 @@ export default function ManageStudents() {
           message.success('Student record updated successfully');
         } else {
           // Add new student record
-          await studentAPI.create({ 
+          const createdStudent = await studentAPI.create({
             ...values, 
             status: 'Active',
             semester: String(values.semester)
           });
-          message.success('New student record created successfully');
+          Modal.success({
+            title: 'Student account created',
+            content: (
+              <div>
+                <p>Share this one-time temporary password securely with the student:</p>
+                <strong style={{ fontFamily: 'monospace', fontSize: 16 }}>{createdStudent.temporaryPassword}</strong>
+              </div>
+            ),
+          });
         }
         setIsModalOpen(false);
         fetchStudents();

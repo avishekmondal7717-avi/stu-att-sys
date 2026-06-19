@@ -1,0 +1,130 @@
+.attendance-session-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.attendance-period-label {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.attendance-summary-row {
+  margin-bottom: 16px;
+}
+
+.attendance-summary-card,
+.attendance-session-card,
+.attendance-empty-card {
+  height: 100%;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.attendance-summary-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: #2563eb;
+  background: #eff6ff;
+  font-size: 18px;
+}
+
+.attendance-summary-label,
+.attendance-summary-value {
+  display: block;
+}
+
+.attendance-summary-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.attendance-summary-value {
+  color: var(--text-primary);
+  font-size: 20px;
+}
+
+.attendance-session-card h3 {
+  min-height: 40px;
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.attendance-session-tags {
+  margin-bottom: 14px;
+}
+
+.attendance-session-time {
+  margin-bottom: 16px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.attendance-session-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.attendance-session-counts strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.attendance-session-counts .present strong {
+  color: #16a34a;
+}
+
+.attendance-session-counts .absent strong {
+  color: #dc2626;
+}
+
+.attendance-rate-track {
+  height: 6px;
+  overflow: hidden;
+  margin-bottom: 6px;
+  border-radius: 3px;
+  background: var(--border-color);
+}
+
+.attendance-rate-track span {
+  display: block;
+  height: 100%;
+  background: #16a34a;
+}
+
+.attendance-session-card small {
+  color: var(--text-secondary);
+}
+
+.attendance-detail-meta {
+  margin-bottom: 14px;
+}
+
+.attendance-detail-search {
+  max-width: 360px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 640px) {
+  .attendance-period-label {
+    width: 100%;
+    margin-left: 0;
+  }
+}

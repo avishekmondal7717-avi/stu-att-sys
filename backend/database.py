@@ -117,6 +117,7 @@ def init_db():
         email TEXT UNIQUE NOT NULL,
         contact TEXT,
         department TEXT NOT NULL,
+        subjects TEXT,
         status TEXT DEFAULT 'Active',
         photo TEXT
     )
@@ -152,19 +153,6 @@ def init_db():
     )
     """)
     
-    # Run migration to update UNIQUE constraint for existing databases
-    cursor.execute("SELECT 1 FROM pg_constraint WHERE conname = 'attendance_rollnumber_date_markedby_key';")
-    exists = cursor.fetchone()
-    if not exists:
-        try:
-            cursor.execute("ALTER TABLE attendance DROP CONSTRAINT IF EXISTS attendance_rollnumber_date_key;")
-            cursor.execute("""
-                ALTER TABLE attendance 
-                ADD CONSTRAINT attendance_rollnumber_date_markedby_key UNIQUE(rollnumber, date, markedby);
-            """)
-        except Exception as e:
-            print(f"Migration: unique constraint update: {e}")
-
     # Create active sessions table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS active_sessions (
@@ -173,6 +161,69 @@ def init_db():
         isactive BOOLEAN DEFAULT FALSE
     )
     """)
+
+    # Each classroom opening is a distinct historical session. This allows the
+    # same student to attend several subjects on the same day without overwrites.
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS attendance_sessions (
+        id SERIAL PRIMARY KEY,
+        classcode TEXT NOT NULL,
+        classname TEXT NOT NULL,
+        department TEXT NOT NULL,
+        semester TEXT NOT NULL,
+        teacher_email TEXT NOT NULL,
+        teacher_name TEXT NOT NULL,
+        session_date TEXT NOT NULL,
+        started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        ended_at TIMESTAMPTZ,
+        isactive BOOLEAN NOT NULL DEFAULT TRUE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS attendance_session_roster (
+        sessionid INTEGER NOT NULL REFERENCES attendance_sessions(id) ON DELETE CASCADE,
+        studentid INTEGER NOT NULL REFERENCES students(id) ON DELETE RESTRICT,
+        rollnumber TEXT NOT NULL,
+        studentname TEXT NOT NULL,
+        department TEXT NOT NULL,
+        semester TEXT NOT NULL,
+        PRIMARY KEY (sessionid, rollnumber)
+    )
+    """)
+    cursor.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS sessionid INTEGER;")
+    cursor.execute("ALTER TABLE attendance DROP CONSTRAINT IF EXISTS attendance_rollnumber_date_markedby_key;")
+    cursor.execute("ALTER TABLE attendance DROP CONSTRAINT IF EXISTS attendance_rollnumber_date_key;")
+    cursor.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS attendance_session_roll_unique
+        ON attendance(sessionid, rollnumber)
+        WHERE sessionid IS NOT NULL
+    """)
+    cursor.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS attendance_legacy_roll_date_unique
+        ON attendance(rollnumber, date)
+        WHERE sessionid IS NULL
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS attendance_sessions_teacher_date_idx
+        ON attendance_sessions(teacher_email, session_date DESC)
+    """)
+    cursor.execute("""
+        UPDATE active_sessions active
+        SET isactive = FALSE
+        WHERE active.isactive = TRUE
+          AND NOT EXISTS (
+              SELECT 1
+              FROM attendance_sessions history
+              WHERE history.classcode = active.classcode
+                AND history.isactive = TRUE
+          )
+    """)
+
+    # Ensure teachers.subjects column exists for storing comma-separated subjects
+    try:
+        cursor.execute("ALTER TABLE teachers ADD COLUMN IF NOT EXISTS subjects TEXT;")
+    except Exception as e:
+        print(f"Warning: could not ensure teachers.subjects column: {e}")
 
     # Create audit_logs table
     cursor.execute("""
@@ -186,26 +237,97 @@ def init_db():
     """)
 
 
-    # Seed active sessions
-    cursor.execute("SELECT COUNT(*) FROM active_sessions")
-    if cursor.fetchone()[0] == 0:
-        classes = [
-            ("CS-401", "CS-401: Data Structures & Algorithms"),
-            ("CS-402", "CS-402: Database Management Systems"),
-            ("CS-403", "CS-403: Operating Systems"),
-            ("CS-404", "CS-404: Formal Language & Automata"),
-            ("HU-401", "HU-401: Values & Ethics in Profession")
-        ]
-        cursor.executemany("INSERT INTO active_sessions (classcode, classname, isactive) VALUES (%s, %s, FALSE)", classes)
+    # Seed/refresh active sessions. CS-* codes keep department + semester filtering simple.
+    classes = [
+        ("CS-101", "Mathematics-IA (BS-M101)"),
+        ("CS-102", "Physics-I (BS-PH101)"),
+        ("CS-103", "Basic Electrical Engineering (ES-EE101)"),
+        ("CS-104", "Physics-I Laboratory (BS-PH191)"),
+        ("CS-105", "Basic Electrical Engineering Lab (ES-EE191)"),
+        ("CS-106", "Workshop (ES-ME192)"),
+        ("CS-201", "Chemistry-I (BS-CH201)"),
+        ("CS-202", "Mathematics-IIA (BS-M201)"),
+        ("CS-203", "Programming for Problem Solving (ES-CS201)"),
+        ("CS-204", "English (HM-HU201)"),
+        ("CS-205", "Chemistry-I Laboratory (BS-CH291)"),
+        ("CS-206", "Programming for Problem Solving Lab (ES-CS291)"),
+        ("CS-207", "Engineering Graphics & Design (ES-ME291)"),
+        ("CS-208", "Language Laboratory (HM-HU291)"),
+        ("CS-301", "Analog and Digital Electronics (ESC 301)"),
+        ("CS-302", "Data Structure & Algorithms (PCC-CS301)"),
+        ("CS-303", "Computer Organisation (PCC-CS302)"),
+        ("CS-304", "Mathematics-III (BSC 301)"),
+        ("CS-305", "Economics for Engineers (HSMC 301)"),
+        ("CS-306", "Analog and Digital Electronics Lab (ESC 391)"),
+        ("CS-307", "Data Structure & Algorithm Lab (PCC-CS391)"),
+        ("CS-308", "Computer Organization Lab (PCC-CS392)"),
+        ("CS-309", "IT Workshop (PCC-CS393)"),
+        ("CS-401", "Discrete Mathematics (PCC-CS401)"),
+        ("CS-402", "Computer Architecture (PCC-CS402)"),
+        ("CS-403", "Formal Language & Automata Theory (PCC-CS403)"),
+        ("CS-404", "Design and Analysis of Algorithms (PCC-CS404)"),
+        ("CS-405", "Biology (BSC 401)"),
+        ("CS-406", "Environmental Sciences (MC-401)"),
+        ("CS-407", "Computer Architecture Lab (PCC-CS492)"),
+        ("CS-408", "Design & Analysis Algorithm Lab (PCC-CS494)"),
+        ("CS-501", "Software Engineering (ESC501)"),
+        ("CS-502", "Compiler Design (PCC-CS501)"),
+        ("CS-503", "Operating Systems (PCC-CS502)"),
+        ("CS-504", "Object Oriented Programming (PCC-CS503)"),
+        ("CS-505", "Introduction to Industrial Management (HSMC-501)"),
+        ("CS-506", "Artificial Intelligence (PEC-IT501B)"),
+        ("CS-507", "Constitution of India (MC-CS501)"),
+        ("CS-508", "Software Engineering Lab (ESC591)"),
+        ("CS-509", "Operating System Lab (PCC-CS592)"),
+        ("CS-510", "Object Oriented Programming Lab (PCC-CS593)"),
+        ("CS-601", "Database Management Systems (PCC-CS601)"),
+        ("CS-602", "Computer Networks (PCC-CS602)"),
+        ("CS-603", "Research Methodology (PROJ-CS601)"),
+        ("CS-604", "Distributed Systems (PEC-IT601B)"),
+        ("CS-605", "Image Processing (PEC-IT601D)"),
+        ("CS-606", "Pattern Recognition (PEC-IT602D)"),
+        ("CS-607", "Numerical Methods (OEC-IT601A)"),
+        ("CS-608", "Database Management System Lab (PCC-CS691)"),
+        ("CS-609", "Computer Networks Lab (PCC-CS692)"),
+        ("CS-701", "Project Management and Entrepreneurship (HSMC 701)"),
+        ("CS-702", "Machine Learning (PEC-CS701E)"),
+        ("CS-703", "Soft Computing (PEC-CS702B)"),
+        ("CS-704", "Adhoc-Sensor Network (PEC-CS702C)"),
+        ("CS-705", "Operation Research (OEC-CS701A)"),
+        ("CS-706", "Multimedia Technology (OEC-CS701B)"),
+        ("CS-707", "Project-II (PROJ-CS781)"),
+        ("CS-801", "Cryptography and Network Security (PEC-CS801B)"),
+        ("CS-802", "Internet of Things (PEC-CS801E)"),
+        ("CS-803", "Big Data Analytics (OEC-CS801A)"),
+        ("CS-804", "Mobile Computing (OEC-CS801C)"),
+        ("CS-805", "E-Commerce & ERP (OEC-CS802A)"),
+        ("CS-806", "Project-III (PROJ-CS881)"),
+        ("HU-401", "HU-401: Values & Ethics in Profession"),
+    ]
+    cursor.executemany("""
+        INSERT INTO active_sessions (classcode, classname, isactive)
+        VALUES (%s, %s, FALSE)
+        ON CONFLICT (classcode) DO UPDATE SET classname = EXCLUDED.classname
+    """, classes)
     
-    # Seed Admin if the table is empty
+    # Bootstrap the first administrator only from explicit environment values.
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
-        admin_pass = hash_password("admin@123")
+        admin_email = os.environ.get("ADMIN_EMAIL")
+        admin_password = os.environ.get("ADMIN_PASSWORD")
+        admin_name = os.environ.get("ADMIN_NAME", "System Admin")
+        if not admin_email or not admin_password or len(admin_password) < 12:
+            conn.rollback()
+            release_db_connection(conn)
+            raise ValueError(
+                "ADMIN_EMAIL and an ADMIN_PASSWORD of at least 12 characters "
+                "are required to initialize an empty database"
+            )
+        admin_pass = hash_password(admin_password)
         cursor.execute("""
         INSERT INTO users (email, password, role, referenceid, fullname, status)
         VALUES (%s, %s, %s, %s, %s, %s)
-        """, ('admin@email.com', admin_pass, 'admin', 'ADMIN01', 'System Admin', 'Active'))
+        """, (admin_email, admin_pass, 'admin', 'ADMIN01', admin_name, 'Active'))
         
     conn.commit()
     release_db_connection(conn)

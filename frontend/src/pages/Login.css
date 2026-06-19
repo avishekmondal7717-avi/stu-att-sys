@@ -2,8 +2,6 @@
    PREMIUM GLASSMORPHISM DESIGN SYSTEM - LOGIN PAGE
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-
 * {
   margin: 0;
   padding: 0;
@@ -20,7 +18,7 @@
   position: relative;
   background: var(--auth-bg);
   overflow: hidden;
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--app-font);
   transition: all 0.3s ease;
 }
 
@@ -281,18 +279,6 @@
   cursor: pointer;
   border-radius: 4px;
   background: var(--auth-input-bg);
-}
-
-.forgot {
-  color: #818cf8;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.15s;
-}
-
-.forgot:hover {
-  color: #6366f1;
-  text-decoration: underline;
 }
 
 /* Primary Action Button - Sign In */

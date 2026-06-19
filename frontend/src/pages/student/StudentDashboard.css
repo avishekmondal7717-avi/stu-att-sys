@@ -3,7 +3,7 @@
   background: #f4f6fb;
   display: flex;
   flex-direction: column;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--app-font);
 }
 
 /* Navbar */

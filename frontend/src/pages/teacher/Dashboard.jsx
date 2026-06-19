@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Flex,
@@ -8,27 +8,131 @@ import {
   FormLabel,
   Select,
   Button,
-  Avatar,
   Text,
-  Spacer,
   Heading,
   Stack,
   Card,
   CardHeader,
   CardBody,
-  Badge,
   useToast,
-  Spinner,
-  Stat,
-  StatLabel,
-  StatNumber,
-  SimpleGrid,
-  Divider,
-  HStack
+  Divider
 } from '@chakra-ui/react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { Play, Activity } from 'lucide-react';
-import { dashboardAPI } from '../../services/api';
+import { Play } from 'lucide-react';
+import { attendanceAPI } from '../../services/api';
+
+const STREAMS = [
+  {
+    label: 'Computer Science',
+    value: 'Computer Science',
+    prefix: 'CS',
+    years: [
+      {
+        label: '1st Year',
+        value: '1',
+        semesters: [
+          { label: 'Semester I', value: '1', subjects: [
+            ['CS-101', 'Mathematics-IA (BS-M101)'],
+            ['CS-102', 'Physics-I (BS-PH101)'],
+            ['CS-103', 'Basic Electrical Engineering (ES-EE101)'],
+            ['CS-104', 'Physics-I Laboratory (BS-PH191)'],
+            ['CS-105', 'Basic Electrical Engineering Lab (ES-EE191)'],
+            ['CS-106', 'Workshop (ES-ME192)'],
+          ]},
+          { label: 'Semester II', value: '2', subjects: [
+            ['CS-201', 'Chemistry-I (BS-CH201)'],
+            ['CS-202', 'Mathematics-IIA (BS-M201)'],
+            ['CS-203', 'Programming for Problem Solving (ES-CS201)'],
+            ['CS-204', 'English (HM-HU201)'],
+            ['CS-205', 'Chemistry-I Laboratory (BS-CH291)'],
+            ['CS-206', 'Programming for Problem Solving Lab (ES-CS291)'],
+            ['CS-207', 'Engineering Graphics & Design (ES-ME291)'],
+            ['CS-208', 'Language Laboratory (HM-HU291)'],
+          ]},
+        ],
+      },
+      {
+        label: '2nd Year',
+        value: '2',
+        semesters: [
+          { label: 'Semester III', value: '3', subjects: [
+            ['CS-301', 'Analog and Digital Electronics (ESC 301)'],
+            ['CS-302', 'Data Structure & Algorithms (PCC-CS301)'],
+            ['CS-303', 'Computer Organisation (PCC-CS302)'],
+            ['CS-304', 'Mathematics-III (BSC 301)'],
+            ['CS-305', 'Economics for Engineers (HSMC 301)'],
+            ['CS-306', 'Analog and Digital Electronics Lab (ESC 391)'],
+            ['CS-307', 'Data Structure & Algorithm Lab (PCC-CS391)'],
+            ['CS-308', 'Computer Organization Lab (PCC-CS392)'],
+            ['CS-309', 'IT Workshop (PCC-CS393)'],
+          ]},
+          { label: 'Semester IV', value: '4', subjects: [
+            ['CS-401', 'Discrete Mathematics (PCC-CS401)'],
+            ['CS-402', 'Computer Architecture (PCC-CS402)'],
+            ['CS-403', 'Formal Language & Automata Theory (PCC-CS403)'],
+            ['CS-404', 'Design and Analysis of Algorithms (PCC-CS404)'],
+            ['CS-405', 'Biology (BSC 401)'],
+            ['CS-406', 'Environmental Sciences (MC-401)'],
+            ['CS-407', 'Computer Architecture Lab (PCC-CS492)'],
+            ['CS-408', 'Design & Analysis Algorithm Lab (PCC-CS494)'],
+          ]},
+        ],
+      },
+      {
+        label: '3rd Year',
+        value: '3',
+        semesters: [
+          { label: 'Semester V', value: '5', subjects: [
+            ['CS-501', 'Software Engineering (ESC501)'],
+            ['CS-502', 'Compiler Design (PCC-CS501)'],
+            ['CS-503', 'Operating Systems (PCC-CS502)'],
+            ['CS-504', 'Object Oriented Programming (PCC-CS503)'],
+            ['CS-505', 'Introduction to Industrial Management (HSMC-501)'],
+            ['CS-506', 'Artificial Intelligence (PEC-IT501B)'],
+            ['CS-507', 'Constitution of India (MC-CS501)'],
+            ['CS-508', 'Software Engineering Lab (ESC591)'],
+            ['CS-509', 'Operating System Lab (PCC-CS592)'],
+            ['CS-510', 'Object Oriented Programming Lab (PCC-CS593)'],
+          ]},
+          { label: 'Semester VI', value: '6', subjects: [
+            ['CS-601', 'Database Management Systems (PCC-CS601)'],
+            ['CS-602', 'Computer Networks (PCC-CS602)'],
+            ['CS-603', 'Research Methodology (PROJ-CS601)'],
+            ['CS-604', 'Distributed Systems (PEC-IT601B)'],
+            ['CS-605', 'Image Processing (PEC-IT601D)'],
+            ['CS-606', 'Pattern Recognition (PEC-IT602D)'],
+            ['CS-607', 'Numerical Methods (OEC-IT601A)'],
+            ['CS-608', 'Database Management System Lab (PCC-CS691)'],
+            ['CS-609', 'Computer Networks Lab (PCC-CS692)'],
+          ]},
+        ],
+      },
+      {
+        label: '4th Year',
+        value: '4',
+        semesters: [
+          { label: 'Semester VII', value: '7', subjects: [
+            ['CS-701', 'Project Management and Entrepreneurship (HSMC 701)'],
+            ['CS-702', 'Machine Learning (PEC-CS701E)'],
+            ['CS-703', 'Soft Computing (PEC-CS702B)'],
+            ['CS-704', 'Adhoc-Sensor Network (PEC-CS702C)'],
+            ['CS-705', 'Operation Research (OEC-CS701A)'],
+            ['CS-706', 'Multimedia Technology (OEC-CS701B)'],
+            ['CS-707', 'Project-II (PROJ-CS781)'],
+          ]},
+          { label: 'Semester VIII', value: '8', subjects: [
+            ['CS-801', 'Cryptography and Network Security (PEC-CS801B)'],
+            ['CS-802', 'Internet of Things (PEC-CS801E)'],
+            ['CS-803', 'Big Data Analytics (OEC-CS801A)'],
+            ['CS-804', 'Mobile Computing (OEC-CS801C)'],
+            ['CS-805', 'E-Commerce & ERP (OEC-CS802A)'],
+            ['CS-806', 'Project-III (PROJ-CS881)'],
+          ]},
+        ],
+      },
+    ],
+  },
+];
 
 export default function FacultyDashboard() {
   const navigate = useNavigate();
@@ -36,45 +140,14 @@ export default function FacultyDashboard() {
   const toast = useToast();
 
   const [department, setDepartment] = useState('');
+  const [year, setYear] = useState('');
   const [semester, setSemester] = useState('');
   const [subject, setSubject] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    totalPresent: 0,
-    totalAbsent: 0,
-    attendanceRate: 0,
-    recentAttendance: []
-  });
-
-  const loadDashboardData = async () => {
-    try {
-      const statsRes = await dashboardAPI.getStats();
-      setStats(statsRes);
-    } catch (err) {
-      console.error('Failed to load dashboard data:', err);
-      toast({
-        title: 'Error loading dashboard',
-        description: err.message || 'Could not fetch faculty workspace metrics.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const handleLaunchScan = () => {
-    if (!department || !semester || !subject) {
+  const handleLaunchScan = async () => {
+    if (!department || !year || !semester || !subject) {
       toast({
         title: 'Incomplete Session Configuration',
-        description: 'Please select Subject, Semester, and Department before launching webcam scans.',
+        description: 'Please select stream, year, semester, and subject before opening the attendance window.',
         status: 'warning',
         duration: 3500,
         isClosable: true
@@ -90,7 +163,40 @@ export default function FacultyDashboard() {
       isClosable: true
     });
 
-    navigate(`/webcam?dept=${encodeURIComponent(department)}&sem=${encodeURIComponent(semester)}&sub=${encodeURIComponent(subject)}`);
+    const selectedSubject = availableSubjects.find(([code]) => code === subject);
+    const subjectName = selectedSubject?.[1] || subject;
+
+    let openedSession;
+    try {
+      openedSession = await attendanceAPI.toggleSession({ classCode: subject, active: true });
+      localStorage.setItem('teacherAttendanceScope', JSON.stringify({
+        department,
+        year,
+        semester,
+        classCode: subject,
+        subjectName,
+        sessionId: openedSession.sessionId
+      }));
+    } catch (err) {
+      toast({
+        title: 'Could not open attendance window',
+        description: err.message || 'Please try again.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true
+      });
+      return;
+    }
+
+    const sessionQuery = new URLSearchParams({
+      stream: department,
+      year,
+      sem: semester,
+      classCode: subject,
+      subject: subjectName,
+      sessionId: String(openedSession.sessionId)
+    });
+    navigate(`/webcam?${sessionQuery.toString()}`);
   };
 
   const isDark = theme === 'dark';
@@ -101,52 +207,75 @@ export default function FacultyDashboard() {
   const textMuted = isDark ? '#a1a1aa' : 'gray.500';
   const textLabel = isDark ? '#e4e4e7' : 'gray.600';
   const optionBg = isDark ? '#18181b' : 'white';
-
-  if (loading) {
-    return (
-      <Flex minH="80vh" align="center" justify="center">
-        <Spinner size="xl" thickness="4px" speed="0.65s" color="blue.500" />
-      </Flex>
-    );
-  }
+  const selectedStream = STREAMS.find(s => s.value === department);
+  const availableYears = selectedStream?.years || [];
+  const selectedYear = availableYears.find(y => y.value === year);
+  const availableSemesters = selectedYear?.semesters || [];
+  const selectedSemester = availableSemesters.find(s => s.value === semester);
+  const availableSubjects = selectedSemester?.subjects || [];
 
   return (
     <Box p={6} bg={bgPrimary} minH="100vh" w="100%" transition="all 0.3s">
       {/* Title Header */}
       <Box mb={6}>
         <Heading size="lg" color={textColor} fontWeight="bold">Faculty Dashboard</Heading>
-        <Text color={textMuted} fontSize="sm">Launch scanning sessions and view live student attendance updates</Text>
+        <Text color={textMuted} fontSize="sm">Configure a class, then monitor verified attendance in its live window</Text>
       </Box>
 
       {/* Primary Grid Layout */}
-      <Grid templateColumns={{ base: "1fr", lg: "2fr 1fr" }} gap={6}>
+      <Grid templateColumns="1fr" gap={6}>
         {/* Left Panel: Session Setup Wizard */}
         <GridItem>
           <Card borderRadius="xl" shadow="md" bg={bgSecondary} border={isDark ? "1px solid" : "none"} borderColor={borderColor}>
             <CardHeader pb={0}>
-              <Heading size="md" color={textColor}>Initialize Biometric Session</Heading>
-              <Text fontSize="xs" color={textMuted}>Configure parameters to deploy the real-time SFace scanning window</Text>
+              <Heading size="md" color={textColor}>Initialize Attendance Window</Heading>
+              <Text fontSize="xs" color={textMuted}>Select stream, year, semester, and subject before monitoring verified check-ins</Text>
             </CardHeader>
             <CardBody>
               <Stack spacing={5}>
                 <FormControl isRequired>
-                  <FormLabel fontSize="sm" fontWeight="bold" color={textLabel}>Select Department</FormLabel>
+                  <FormLabel fontSize="sm" fontWeight="bold" color={textLabel}>Select Stream</FormLabel>
                   <Select
-                    placeholder="Choose Department"
+                    placeholder="Choose Stream"
                     value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
+                    onChange={(e) => {
+                      setDepartment(e.target.value);
+                      setYear('');
+                      setSemester('');
+                      setSubject('');
+                    }}
                     focusBorderColor="blue.400"
                     bg={bgSecondary}
                     color={textColor}
                     borderColor={borderColor}
                     _hover={{ borderColor: isDark ? 'whiteAlpha.450' : 'gray.300' }}
                   >
-                    <option value="Computer Science" style={{ background: optionBg, color: textColor }}>Computer Science</option>
-                    <option value="Information Technology" style={{ background: optionBg, color: textColor }}>Information Technology</option>
-                    <option value="Electronics & Communication" style={{ background: optionBg, color: textColor }}>Electronics & Communication</option>
-                    <option value="Mechanical Engineering" style={{ background: optionBg, color: textColor }}>Mechanical Engineering</option>
-                    <option value="Civil Engineering" style={{ background: optionBg, color: textColor }}>Civil Engineering</option>
-                    <option value="Electrical Engineering" style={{ background: optionBg, color: textColor }}>Electrical Engineering</option>
+                    {STREAMS.map(stream => (
+                      <option key={stream.value} value={stream.value} style={{ background: optionBg, color: textColor }}>{stream.label}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl isRequired>
+                  <FormLabel fontSize="sm" fontWeight="bold" color={textLabel}>Select Year</FormLabel>
+                  <Select
+                    placeholder="Choose Year"
+                    value={year}
+                    onChange={(e) => {
+                      setYear(e.target.value);
+                      setSemester('');
+                      setSubject('');
+                    }}
+                    isDisabled={!department}
+                    focusBorderColor="blue.400"
+                    bg={bgSecondary}
+                    color={textColor}
+                    borderColor={borderColor}
+                    _hover={{ borderColor: isDark ? 'whiteAlpha.450' : 'gray.300' }}
+                  >
+                    {availableYears.map(item => (
+                      <option key={item.value} value={item.value} style={{ background: optionBg, color: textColor }}>{item.label}</option>
+                    ))}
                   </Select>
                 </FormControl>
 
@@ -155,21 +284,20 @@ export default function FacultyDashboard() {
                   <Select
                     placeholder="Choose Semester"
                     value={semester}
-                    onChange={(e) => setSemester(e.target.value)}
+                    onChange={(e) => {
+                      setSemester(e.target.value);
+                      setSubject('');
+                    }}
+                    isDisabled={!year}
                     focusBorderColor="blue.400"
                     bg={bgSecondary}
                     color={textColor}
                     borderColor={borderColor}
                     _hover={{ borderColor: isDark ? 'whiteAlpha.450' : 'gray.300' }}
                   >
-                    <option value="1" style={{ background: optionBg, color: textColor }}>Semester 1</option>
-                    <option value="2" style={{ background: optionBg, color: textColor }}>Semester 2</option>
-                    <option value="3" style={{ background: optionBg, color: textColor }}>Semester 3</option>
-                    <option value="4" style={{ background: optionBg, color: textColor }}>Semester 4</option>
-                    <option value="5" style={{ background: optionBg, color: textColor }}>Semester 5</option>
-                    <option value="6" style={{ background: optionBg, color: textColor }}>Semester 6</option>
-                    <option value="7" style={{ background: optionBg, color: textColor }}>Semester 7</option>
-                    <option value="8" style={{ background: optionBg, color: textColor }}>Semester 8</option>
+                    {availableSemesters.map(item => (
+                      <option key={item.value} value={item.value} style={{ background: optionBg, color: textColor }}>{item.label}</option>
+                    ))}
                   </Select>
                 </FormControl>
 
@@ -179,17 +307,16 @@ export default function FacultyDashboard() {
                     placeholder="Choose Course Module"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
+                    isDisabled={!semester}
                     focusBorderColor="blue.400"
                     bg={bgSecondary}
                     color={textColor}
                     borderColor={borderColor}
                     _hover={{ borderColor: isDark ? 'whiteAlpha.450' : 'gray.300' }}
                   >
-                    <option value="Machine Learning" style={{ background: optionBg, color: textColor }}>Machine Learning (CS-401)</option>
-                    <option value="Database Systems" style={{ background: optionBg, color: textColor }}>Database Systems (IT-402)</option>
-                    <option value="Computer Networks" style={{ background: optionBg, color: textColor }}>Computer Networks (EC-403)</option>
-                    <option value="Software Engineering" style={{ background: optionBg, color: textColor }}>Software Engineering (CS-404)</option>
-                    <option value="Theory of Computation" style={{ background: optionBg, color: textColor }}>Theory of Computation (CS-405)</option>
+                    {availableSubjects.map(([code, name]) => (
+                      <option key={code} value={code} style={{ background: optionBg, color: textColor }}>{name}</option>
+                    ))}
                   </Select>
                 </FormControl>
 
@@ -212,58 +339,6 @@ export default function FacultyDashboard() {
           </Card>
         </GridItem>
 
-        {/* Right Panel: Running Log of Matched Check-ins */}
-        <GridItem>
-          <Card borderRadius="xl" shadow="md" bg={bgSecondary} h="100%" border={isDark ? "1px solid" : "none"} borderColor={borderColor}>
-            <CardHeader pb={2} display="flex" justifyContent="space-between" align="center">
-              <Box>
-                <Heading size="md" color={textColor}>Session Roster Log</Heading>
-                <Text fontSize="xs" color={textMuted}>Real-time biometric matched check-ins</Text>
-              </Box>
-              <Badge colorScheme="green" variant="solid" px={2} py={1} borderRadius="md">
-                Live
-              </Badge>
-            </CardHeader>
-            <CardBody overflowY="auto" maxH="480px">
-              <Stack spacing={4}>
-                {stats.recentAttendance.length === 0 ? (
-                  <Flex h="250px" direction="column" align="center" justify="center" color={textMuted} gap={2}>
-                    <Activity size={32} />
-                    <Text fontSize="sm">Roster stream is currently empty.</Text>
-                  </Flex>
-                ) : (
-                  stats.recentAttendance.map((item, index) => (
-                    <Flex key={index} align="center" p={3} bg={isDark ? '#27272a' : 'gray.50'} borderRadius="lg" shadow="sm">
-                      {/* Avatar collection with semantic green/red presence rings as requested */}
-                      <Avatar
-                        size="sm"
-                        name={item.studentName}
-                        bg={item.status === 'Present' ? 'green.500' : 'red.500'}
-                        color="white"
-                        border="2px solid"
-                        borderColor={item.status === 'Present' ? 'green.400' : 'red.400'}
-                        mr={3}
-                      />
-                      <Box>
-                        <Text fontWeight="bold" fontSize="sm" color={textColor}>{item.studentName}</Text>
-                        <Text fontSize="2xs" color={textMuted}>Roll: {item.rollNumber}</Text>
-                      </Box>
-                      <Spacer />
-                      <Stack align="flex-end" spacing={0.5}>
-                        <Badge colorScheme={item.status === 'Present' ? 'green' : 'red'} variant="subtle">
-                          {item.status}
-                        </Badge>
-                        {item.status === 'Present' && (
-                          <Text fontSize="3xs" color={textMuted}>{item.timeIn}</Text>
-                        )}
-                      </Stack>
-                    </Flex>
-                  ))
-                )}
-              </Stack>
-            </CardBody>
-          </Card>
-        </GridItem>
       </Grid>
     </Box>
   );

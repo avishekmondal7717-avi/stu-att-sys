@@ -1,0 +1,191 @@
+.live-attendance-page {
+  padding: 0 8px;
+}
+
+.live-attendance-card,
+.live-attendance-empty {
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.live-attendance-empty {
+  display: grid;
+  min-height: 420px;
+  place-items: center;
+}
+
+.live-session-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 4px 4px 22px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.live-session-title-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.live-session-title-line h2,
+.live-feed-heading h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.live-session-title-line h2 {
+  font-size: 22px;
+}
+
+.live-session-primary p {
+  margin: 5px 0 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.live-session-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.live-count {
+  min-width: 108px;
+  text-align: right;
+}
+
+.live-count strong,
+.live-count span {
+  display: block;
+}
+
+.live-count strong {
+  color: #16a34a;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.live-count span {
+  margin-top: 5px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.live-feed-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 4px 14px;
+}
+
+.live-feed-heading h3 {
+  font-size: 16px;
+}
+
+.live-feed-heading p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.live-polling {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.live-polling i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+.live-checkin-avatar {
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+}
+
+.live-checkin-name,
+.live-checkin-roll,
+.live-subject-code,
+.live-subject-name {
+  display: block;
+}
+
+.live-checkin-name,
+.live-subject-code {
+  color: var(--text-primary);
+}
+
+.live-checkin-roll,
+.live-subject-name {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.live-verified-icon {
+  color: #16a34a;
+}
+
+.live-checkin-table .ant-table {
+  background: transparent;
+}
+
+.live-checkin-table .ant-table-thead > tr > th {
+  background: var(--bg-hover) !important;
+  color: var(--text-secondary) !important;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.live-checkin-table .ant-table-tbody > tr > td {
+  padding-top: 15px;
+  padding-bottom: 15px;
+  color: var(--text-primary);
+}
+
+.live-checkin-table .ant-table-tbody > tr:hover > td {
+  background: var(--bg-hover) !important;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@media (max-width: 720px) {
+  .live-attendance-page {
+    padding: 0;
+  }
+
+  .live-session-header,
+  .live-session-actions,
+  .live-feed-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .live-count {
+    text-align: left;
+  }
+}

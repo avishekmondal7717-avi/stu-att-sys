@@ -136,15 +136,12 @@ export const teacherAPI = {
 
 // ── Attendance API ────────────────────────────────────────────
 export const attendanceAPI = {
-  getByDate: async (date) => {
-    return request(`/attendance?date=${date}`);
+  getSessionHistory: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/attendance/session-history?${query}`);
   },
-  markManual: async (payload) => {
-    // payload: { studentId: int, status: boolean, date: string }
-    return request('/attendance/mark', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
+  getSessionDetail: async (sessionId) => {
+    return request(`/attendance/session-history/${sessionId}`);
   },
   exportExcel: async (date) => {
     return request(`/attendance/export?date=${date}`);
@@ -167,11 +164,6 @@ export const attendanceAPI = {
   },
   getStudentAttendance: async () => {
     return request('/student/attendance');
-  },
-  deleteRecord: async (id) => {
-    return request(`/attendance/${id}`, {
-      method: 'DELETE'
-    });
   }
 };
 
@@ -204,4 +196,3 @@ export const adminAPI = {
     return request('/admin/audit-logs');
   }
 };
-

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { message, notification, Button, Steps } from "antd";
-import { studentAPI, authAPI } from "../services/api";
+import { Button, Steps } from "antd";
+import { message, notification } from "../components/AntdGlobalHelper";
+import { authAPI } from "../services/api";
 import "./Register.css";
 
 const { Step } = Steps;
@@ -171,12 +172,13 @@ const Register = () => {
         ...payload,
         password: formData.password
       });
-      
+
+      message.success("Registration successful");
       notification.success({
         message: "Registration Successful",
         description: "Your student profile and login account have been successfully created! Redirecting to login...",
         placement: "topRight",
-        duration: 4
+        duration: 5
       });
       setTimeout(() => navigate('/login'), 2500);
     } catch (err) {

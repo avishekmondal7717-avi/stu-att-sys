@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Input, Select, Tag, Avatar, Space, Popconfirm, message, Modal } from 'antd';
-import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { Table, Button, Input, Select, Tag, Avatar, Space, message, Modal } from 'antd';
+import { SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/PageHeader';
 import { DEPARTMENTS, COURSES, SEMESTERS } from '../../data/dummyData';
 import { studentAPI } from '../../services/api';
@@ -9,7 +8,6 @@ import { studentAPI } from '../../services/api';
 const { Option } = Select;
 
 const StudentList = () => {
-  const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -37,17 +35,6 @@ const StudentList = () => {
   useEffect(() => {
     loadStudents();
   }, [filterDept, filterSem]);
-
-  const handleDelete = async (id) => {
-    try {
-      await studentAPI.delete(id);
-      setData(data.filter((s) => s.id !== id));
-      message.success('Student record deleted successfully');
-    } catch (err) {
-      console.error(err);
-      message.error('Failed to delete student');
-    }
-  };
 
   const filtered = data.filter((s) => {
     const matchSearch = !search || 
@@ -84,10 +71,6 @@ const StudentList = () => {
       render: (_, r) => (
         <Space>
           <Button type="text" icon={<EyeOutlined />} size="small" onClick={() => setViewStudent(r)} />
-          <Button type="text" icon={<EditOutlined />} size="small" onClick={() => navigate(`/students/edit/${r.id}`)} />
-          <Popconfirm title="Delete this student?" onConfirm={() => handleDelete(r.id)} okType="danger">
-            <Button type="text" icon={<DeleteOutlined style={{ color: '#ff4d4f' }} />} size="small" />
-          </Popconfirm>
         </Space>
       ),
     },
@@ -115,9 +98,6 @@ const StudentList = () => {
           <Select placeholder="All Semesters" allowClear style={{ width: 150 }} value={filterSem || undefined} onChange={setFilterSem}>
             {SEMESTERS.map((s) => <Option key={s} value={s}>Semester {s}</Option>)}
           </Select>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/students/add')} style={{ marginLeft: 'auto', background: '#1e40af' }}>
-            Add Student
-          </Button>
         </div>
 
         <Table

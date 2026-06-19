@@ -9,7 +9,15 @@ import './StudentDashboard.css';
 const { Option } = Select;
 
 export default function StudentWebcam() {
-  const { logs, setLogs, setPresentCount, setTotalClasses, activeSessions = [] } = useOutletContext();
+  const {
+    logs,
+    setLogs,
+    setPresentCount,
+    setTotalClasses,
+    fetchStudentData,
+    dismissSessionNotification,
+    activeSessions = []
+  } = useOutletContext();
 
   const [selectedClass, setSelectedClass] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
@@ -20,6 +28,7 @@ export default function StudentWebcam() {
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
   const scanningRef = useRef(false);
+  const attendanceCompletedRef = useRef(false);
   const selectedClassRef = useRef('');
 
   // Keep ref in sync with state for use inside setInterval closure
@@ -57,6 +66,7 @@ export default function StudentWebcam() {
     }
     
     try {
+      attendanceCompletedRef.current = false;
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480, facingMode: 'user' }
       });
@@ -119,7 +129,7 @@ export default function StudentWebcam() {
   }, [cameraActive]);
 
   const captureAndScan = async () => {
-    if (scanningRef.current) return;
+    if (scanningRef.current || attendanceCompletedRef.current) return;
     scanningRef.current = true;
 
     const video = videoRef.current;
@@ -151,7 +161,7 @@ export default function StudentWebcam() {
       if (res && res.faces && res.faces.length > 0) {
         let primaryWarning = null;
 
-        res.faces.forEach(face => {
+        for (const face of res.faces) {
           const [x, y, w, h] = face.box;
           const name = face.name;
           const is_live = face.is_live;
@@ -216,6 +226,8 @@ export default function StudentWebcam() {
               primaryWarning = { text: `Attendance already logged for ${classCode} today!`, type: "warning" };
               stopCamera();
               setSelectedClass('');
+              attendanceCompletedRef.current = true;
+              message.info(`Attendance already logged for ${classCode} today`);
               return;
             }
 
@@ -233,15 +245,24 @@ export default function StudentWebcam() {
             setPresentCount(prev => prev + 1);
             setTotalClasses(prev => prev + 1);
 
-            message.success("Attendance marked successfully");
+            attendanceCompletedRef.current = true;
+            setScanWarning({ text: `Attendance marked successfully for ${classCode}`, type: "success" });
+            dismissSessionNotification?.(classCode);
+            message.success(`Attendance marked successfully for ${classCode}`);
+            fetchStudentData?.();
             stopCamera();
             setSelectedClass('');
+            return;
           }
-        });
+        }
 
-        setScanWarning(primaryWarning);
+        if (!attendanceCompletedRef.current) {
+          setScanWarning(primaryWarning);
+        }
       } else {
-        setScanWarning({ text: "No face detected in view", type: "warning" });
+        if (!attendanceCompletedRef.current) {
+          setScanWarning({ text: "No face detected in view", type: "warning" });
+        }
       }
     } catch (err) {
       console.error(err);
@@ -356,8 +377,8 @@ export default function StudentWebcam() {
                 </div>
                 {scanWarning && (
                   <div style={{ 
-                    background: scanWarning.type === 'error' ? 'rgba(239,68,68,0.9)' : 'rgba(245,158,11,0.9)', 
-                    border: scanWarning.type === 'error' ? '1px solid #ef4444' : '1px solid #f59e0b', 
+                    background: scanWarning.type === 'success' ? 'rgba(16,185,129,0.9)' : scanWarning.type === 'error' ? 'rgba(239,68,68,0.9)' : 'rgba(245,158,11,0.9)', 
+                    border: scanWarning.type === 'success' ? '1px solid #10b981' : scanWarning.type === 'error' ? '1px solid #ef4444' : '1px solid #f59e0b', 
                     padding: '6px 14px', 
                     borderRadius: 20, 
                     color: '#fff', 

@@ -80,8 +80,16 @@ export default function ManageTeachers() {
           message.success('Teacher record updated successfully');
         } else {
           // Add new record
-          await teacherAPI.create({ ...values, status: 'Active' });
-          message.success('New teacher record created successfully');
+          const createdTeacher = await teacherAPI.create({ ...values, status: 'Active' });
+          Modal.success({
+            title: 'Teacher account created',
+            content: (
+              <div>
+                <p>Share this one-time temporary password securely with the teacher:</p>
+                <strong style={{ fontFamily: 'monospace', fontSize: 16 }}>{createdTeacher.temporaryPassword}</strong>
+              </div>
+            ),
+          });
         }
         setIsModalOpen(false);
         fetchTeachers();

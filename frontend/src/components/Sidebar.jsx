@@ -1,18 +1,16 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, UserPlus, CalendarCheck,
-  FileText, Camera, Settings, LogOut
+  LayoutDashboard, Users, CalendarCheck,
+  FileText, Camera, LogOut
 } from 'lucide-react';
 import './Sidebar.css';
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
   { label: 'Students', icon: Users, to: '/students' },
-  { label: 'Add Student', icon: UserPlus, to: '/add-student' },
   { label: 'Attendance', icon: CalendarCheck, to: '/attendance' },
   { label: 'Reports', icon: FileText, to: '/reports' },
   { label: 'Attendance Window', icon: Camera, to: '/webcam' },
-  { label: 'Settings', icon: Settings, to: '/settings' },
 ];
 
 export default function Sidebar() {
@@ -53,6 +51,7 @@ export default function Sidebar() {
         localStorage.removeItem("userEmail");
         localStorage.removeItem("userFullName");
         localStorage.removeItem("currentUser");
+        localStorage.removeItem("teacherAttendanceScope");
         navigate('/login');
       }}>
         <LogOut size={20} />

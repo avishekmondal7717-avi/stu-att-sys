@@ -7,7 +7,7 @@
 .register-container {
   display: flex;
   height: 100vh;
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--app-font);
   background: var(--auth-bg);
   color: var(--auth-text);
   position: relative;
@@ -198,7 +198,7 @@
 .ant-steps .ant-steps-item-title {
   color: var(--auth-text-secondary) !important;
   font-weight: 600 !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-family: var(--app-font) !important;
 }
 
 .ant-steps .ant-steps-item-active .ant-steps-item-title {

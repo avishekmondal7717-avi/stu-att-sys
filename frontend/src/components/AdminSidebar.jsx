@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, UserCheck, BarChart3, Settings, LogOut
+  LayoutDashboard, Users, UserCheck, BarChart3, LogOut
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -9,7 +9,6 @@ const navItems = [
   { label: 'Manage Students', icon: Users, to: '/admin/students' },
   { label: 'Manage Teachers', icon: UserCheck, to: '/admin/teachers' },
   { label: 'Full Analytics', icon: BarChart3, to: '/admin/analytics' },
-  { label: 'System Settings', icon: Settings, to: '/admin/settings' },
 ];
 
 export default function AdminSidebar() {

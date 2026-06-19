@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Menu, Bell, ChevronDown, Sun, Moon } from 'lucide-react';
 import './Topbar.css';
 
-export default function Topbar({ onToggleSidebar, theme, setTheme, activeSessions = [] }) {
+export default function Topbar({ onToggleSidebar, theme, setTheme, activeSessions = [], onNotificationRead }) {
   const navigate = useNavigate();
   const userFullName = localStorage.getItem("userFullName") || "User";
   const userRole = localStorage.getItem("userRole") || "Role";
@@ -62,6 +62,7 @@ export default function Topbar({ onToggleSidebar, theme, setTheme, activeSession
                       key={session.classCode} 
                       className="notif-item"
                       onClick={() => {
+                        onNotificationRead?.(session.classCode);
                         navigate(`/student/webcam?class=${session.classCode}`);
                         setNotifDropdownOpen(false);
                       }}
@@ -104,4 +105,4 @@ export default function Topbar({ onToggleSidebar, theme, setTheme, activeSession
       </div>
     </header>
   );
-}
+}

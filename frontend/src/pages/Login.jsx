@@ -295,7 +295,6 @@ export default function Login() {
               />
               <span>Remember me</span>
             </label>
-            <a href="/forgot-password" className="forgot">Forgot Password?</a>
           </div>
 
           <button className="btn-signin" onClick={handleSignIn}>Sign In</button>

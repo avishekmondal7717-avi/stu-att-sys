@@ -1,23 +1,20 @@
 import { App as AntdApp, notification } from 'antd';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
+import { useColorMode } from '@chakra-ui/react';
 import { attendanceAPI } from './services/api';
 import AntdGlobalHelper from './components/AntdGlobalHelper';
 import Login from './pages/Login';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
-import ForgotPassword from './pages/ForgotPassword';
 import Register from './pages/Register';
 import TeacherRegister from './pages/teacher/Register';
 import AdminLogin from "./pages/AdminLogin";
 import Dashboard from './pages/teacher/Dashboard';
 import StudentList from './pages/teacher/StudentList';
-import AddStudent from './pages/teacher/AddStudent';
 import AttendanceTable from './pages/teacher/AttendanceTable';
-import MarkAttendance from './pages/teacher/MarkAttendance';
 import Reports from './pages/teacher/Reports';
 import Webcam from './pages/teacher/Webcam';
-import Settings from './pages/teacher/Settings';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentSidebar from './components/StudentSidebar';
 import StudentWebcam from './pages/student/StudentWebcam';
@@ -28,20 +25,23 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminManageStudents from './pages/admin/ManageStudents';
 import AdminManageTeachers from './pages/admin/ManageTeachers';
 import AdminAnalytics from './pages/admin/FullAnalytics';
-import AdminSettings from './pages/admin/SystemSettings';
 import './App.css';
 
 
-// Initial student attendance logs
-const initialStudentLogs = [
-  { key: '1', date: '2026-06-16', timeIn: '09:15:30 AM', timeOut: '04:45:10 PM', status: 'Present', type: 'Webcam Face ID' },
-  { key: '2', date: '2026-06-15', timeIn: '09:10:05 AM', timeOut: '04:40:00 PM', status: 'Present', type: 'Webcam Face ID' },
-  { key: '3', date: '2026-06-14', timeIn: '-', timeOut: '-', status: 'Absent', type: '-' },
-  { key: '4', date: '2026-06-13', timeIn: '09:08:22 AM', timeOut: '04:38:15 PM', status: 'Present', type: 'Webcam Face ID' },
-  { key: '5', date: '2026-06-12', timeIn: '09:12:40 AM', timeOut: '04:43:00 PM', status: 'Present', type: 'Webcam Face ID' },
-  { key: '6', date: '2026-06-11', timeIn: '09:14:15 AM', timeOut: '04:45:00 PM', status: 'Present', type: 'Manual Mark' },
-  { key: '7', date: '2026-06-10', timeIn: '-', timeOut: '-', status: 'Absent', type: '-' },
-];
+function ThemeSync({ theme }) {
+  const { colorMode, setColorMode } = useColorMode();
+
+  useEffect(() => {
+    document.body.classList.toggle('chakra-ui-dark', theme === 'dark');
+    document.body.classList.toggle('chakra-ui-light', theme !== 'dark');
+
+    if (colorMode !== theme) {
+      setColorMode(theme);
+    }
+  }, [colorMode, setColorMode, theme]);
+
+  return null;
+}
 
 function TeacherLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -58,6 +58,7 @@ function TeacherLayout() {
 
   return (
     <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${theme}`}>
+      <ThemeSync theme={theme} />
       <Sidebar theme={theme} />
       <div className="main-area">
         <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} theme={theme} setTheme={setTheme} />
@@ -80,9 +81,22 @@ function StudentLayout() {
   const [absentCount, setAbsentCount] = useState(0);
   const [totalClasses, setTotalClasses] = useState(0);
   const [activeSessions, setActiveSessions] = useState([]);
+  const [readSessionCodes, setReadSessionCodes] = useState(() => new Set());
+  const readSessionCodesRef = useRef(new Set());
   
   // Keep track of sessions we already triggered notifications for
   const notifiedSessions = useRef(new Set());
+
+  const markSessionNotificationRead = (classCode) => {
+    if (!classCode) return;
+    setReadSessionCodes(prev => {
+      const next = new Set(prev);
+      next.add(classCode);
+      readSessionCodesRef.current = next;
+      return next;
+    });
+    notification.destroy(classCode);
+  };
 
   useEffect(() => {
     if (theme === "dark") {
@@ -122,17 +136,18 @@ function StudentLayout() {
         
         // Find newly active sessions
         active.forEach(session => {
-          if (!notifiedSessions.current.has(session.classCode)) {
+          if (!notifiedSessions.current.has(session.classCode) && !readSessionCodesRef.current.has(session.classCode)) {
             // Trigger Ant Design Notification toast
             notification.info({
+              key: session.classCode,
               message: 'Class Attendance Live!',
               description: `The attendance window for ${session.className} is now open. Click here to mark your attendance.`,
-              duration: 15,
+              duration: 0,
               placement: 'topRight',
               style: { cursor: 'pointer', borderLeft: '4px solid #10b981' },
               onClick: () => {
                 navigate(`/student/webcam?class=${session.classCode}`);
-                notification.destroy();
+                markSessionNotificationRead(session.classCode);
               }
             });
             notifiedSessions.current.add(session.classCode);
@@ -146,6 +161,11 @@ function StudentLayout() {
             notifiedSessions.current.delete(code);
           }
         });
+        setReadSessionCodes(prev => {
+          const next = new Set([...prev].filter(code => activeCodes.has(code)));
+          readSessionCodesRef.current = next;
+          return next;
+        });
 
         setActiveSessions(active);
       } catch (err) {
@@ -154,15 +174,24 @@ function StudentLayout() {
     };
 
     fetchSessions();
-    const interval = setInterval(fetchSessions, 4000);
+    const interval = setInterval(fetchSessions, 8000);
     return () => clearInterval(interval);
   }, [navigate]);
 
+  const unreadActiveSessions = activeSessions.filter(session => !readSessionCodes.has(session.classCode));
+
   return (
     <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${theme}`}>
+      <ThemeSync theme={theme} />
       <StudentSidebar theme={theme} />
       <div className="main-area">
-        <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} theme={theme} setTheme={setTheme} activeSessions={activeSessions} />
+        <Topbar
+          onToggleSidebar={() => setSidebarOpen(o => !o)}
+          theme={theme}
+          setTheme={setTheme}
+          activeSessions={unreadActiveSessions}
+          onNotificationRead={markSessionNotificationRead}
+        />
         <main className="page-content">
           <Outlet context={{ 
             logs, 
@@ -173,6 +202,7 @@ function StudentLayout() {
             totalClasses, 
             setTotalClasses, 
             fetchStudentData, 
+            dismissSessionNotification: markSessionNotificationRead,
             activeSessions, 
             theme, 
             setTheme 
@@ -198,6 +228,7 @@ function AdminLayout() {
 
   return (
     <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${theme}`}>
+      <ThemeSync theme={theme} />
       <AdminSidebar theme={theme} />
       <div className="main-area">
         <Topbar onToggleSidebar={() => setSidebarOpen(o => !o)} theme={theme} setTheme={setTheme} />
@@ -285,7 +316,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
           <Route path="/register" element={<Register />} />
           <Route path="/teacher/register" element={<TeacherRegister />} />
           <Route path="/admin-login" element={<AdminLogin />} />
@@ -306,15 +337,15 @@ export default function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/students" element={<StudentList />} />
               <Route path="/students/list" element={<StudentList />} />
-              <Route path="/add-student" element={<AddStudent />} />
-              <Route path="/students/add" element={<AddStudent />} />
-              <Route path="/students/edit/:id" element={<AddStudent />} />
+              <Route path="/add-student" element={<Navigate to="/students" replace />} />
+              <Route path="/students/add" element={<Navigate to="/students" replace />} />
+              <Route path="/students/edit/:id" element={<Navigate to="/students" replace />} />
               <Route path="/attendance" element={<AttendanceTable />} />
               <Route path="/attendance/table" element={<AttendanceTable />} />
-              <Route path="/attendance/mark" element={<MarkAttendance />} />
+              <Route path="/attendance/mark" element={<Navigate to="/attendance" replace />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/webcam" element={<Webcam />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/settings" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Route>
 
@@ -325,7 +356,7 @@ export default function App() {
               <Route path="/admin/students" element={<AdminManageStudents />} />
               <Route path="/admin/teachers" element={<AdminManageTeachers />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
-              <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="/admin/settings" element={<Navigate to="/admin/dashboard" replace />} />
             </Route>
           </Route>
         </Routes>

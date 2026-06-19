@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Table, Tag, Card, Select, Segmented, Empty, message, Popconfirm, Button } from 'antd';
-import { DeleteOutlined, CalendarOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Table, Tag, Card, Select, Segmented, Empty } from 'antd';
+import { CalendarOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { useOutletContext } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader';
-import { attendanceAPI } from '../../services/api';
 
 const { Option } = Select;
 
 export default function StudentLogs() {
-  const { logs, fetchStudentData } = useOutletContext();
+  const { logs } = useOutletContext();
   const [selectedMonth, setSelectedMonth] = useState(''); // e.g. "2026-06"
   const [selectedWeek, setSelectedWeek] = useState('All'); // "All", "1", "2", "3", "4", "5"
   
@@ -72,23 +71,6 @@ export default function StudentLogs() {
 
   const filteredLogs = getFilteredLogs();
 
-  // Determine user role to show delete option (Admin can delete logs from any view)
-  const userRole = localStorage.getItem('userRole');
-  const isAdmin = userRole === 'admin';
-
-  const handleDeleteRecord = async (recordId) => {
-    try {
-      await attendanceAPI.deleteRecord(recordId);
-      message.success("Attendance record deleted successfully.");
-      if (fetchStudentData) {
-        fetchStudentData();
-      }
-    } catch (err) {
-      console.error(err);
-      message.error("Failed to delete attendance record.");
-    }
-  };
-
   const columns = [
     { 
       title: 'Date', 
@@ -132,27 +114,6 @@ export default function StudentLogs() {
       } 
     },
   ];
-
-  if (isAdmin) {
-    columns.push({
-      title: 'Action',
-      key: 'action',
-      width: 100,
-      render: (_, record) => (
-        <Popconfirm
-          title="Delete attendance record?"
-          description="This action cannot be undone."
-          onConfirm={() => handleDeleteRecord(record.id)}
-          okText="Yes"
-          cancelText="No"
-        >
-          <Button type="text" danger icon={<DeleteOutlined />} size="small">
-            Delete
-          </Button>
-        </Popconfirm>
-      ),
-    });
-  }
 
   const weekOptions = [
     { label: 'All Weeks', value: 'All' },
