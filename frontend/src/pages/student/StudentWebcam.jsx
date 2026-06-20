@@ -30,6 +30,7 @@ export default function StudentWebcam() {
   const scanningRef = useRef(false);
   const attendanceCompletedRef = useRef(false);
   const selectedClassRef = useRef('');
+  const locationRef = useRef(null);
 
   // Keep ref in sync with state for use inside setInterval closure
   useEffect(() => {
@@ -67,6 +68,19 @@ export default function StudentWebcam() {
     
     try {
       attendanceCompletedRef.current = false;
+      const selectedSession = activeSessions.find((s) => s.classCode === selectedClass);
+      if (selectedSession?.locationRequired) {
+        locationRef.current = await new Promise((resolve, reject) => {
+          if (!navigator.geolocation) return reject(new Error('Geolocation is not supported by this browser.'));
+          navigator.geolocation.getCurrentPosition(
+            ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy }),
+            () => reject(new Error('Location permission is required to mark attendance.')),
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+          );
+        });
+      } else {
+        locationRef.current = null;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480, facingMode: 'user' }
       });
@@ -85,7 +99,7 @@ export default function StudentWebcam() {
       message.info('Initializing biometric scanning...');
     } catch (err) {
       console.error(err);
-      message.error('Could not access camera. Please check permissions.');
+      message.error(err.message || 'Could not access camera or location. Please check permissions.');
     }
   };
 
@@ -108,6 +122,7 @@ export default function StudentWebcam() {
     }
     setCameraActive(false);
     setScanWarning(null);
+    locationRef.current = null;
   };
 
   // Scanning loop when camera is active — uses lock to prevent request pile-up
@@ -155,7 +170,7 @@ export default function StudentWebcam() {
 
     try {
       const classCode = selectedClassRef.current;
-      const res = await attendanceAPI.scanFace(base64Frame, classCode);
+      const res = await attendanceAPI.scanFace(base64Frame, classCode, locationRef.current);
       ctx.clearRect(0, 0, width, height);
 
       if (res && res.faces && res.faces.length > 0) {
@@ -206,6 +221,8 @@ export default function StudentWebcam() {
           // Realtime warnings setup
           if (!identity_verified) {
             primaryWarning = { text: `Identity Mismatch: Another person's face visible`, type: "error" };
+          } else if (face.liveness_status === 'verifying' && name !== 'Unknown') {
+            primaryWarning = { text: face.liveness_prompt || "Follow the head-turn liveness check", type: "info" };
           } else if (!is_live && name !== 'Unknown') {
             primaryWarning = { text: "Spoof Warning: Biometric liveness check failed!", type: "error" };
           } else if (name === 'Unknown') {
@@ -272,7 +289,11 @@ export default function StudentWebcam() {
         stopCamera();
         setSelectedClass('');
       } else {
-        setScanWarning({ text: "Connection error with scanner", type: "error" });
+        setScanWarning({ text: errMsg || "Connection error with scanner", type: "error" });
+        if (errMsg.toLowerCase().includes('location') || errMsg.toLowerCase().includes('radius') || errMsg.includes('classroom')) {
+          message.error(errMsg);
+          stopCamera();
+        }
       }
     } finally {
       scanningRef.current = false;

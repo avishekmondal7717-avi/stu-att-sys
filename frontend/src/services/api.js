@@ -146,10 +146,16 @@ export const attendanceAPI = {
   exportExcel: async (date) => {
     return request(`/attendance/export?date=${date}`);
   },
-  scanFace: async (base64Image, classCode = null) => {
+  scanFace: async (base64Image, classCode = null, location = null) => {
     return request('/attendance/scan', {
       method: 'POST',
-      body: JSON.stringify({ image: base64Image, classCode })
+      body: JSON.stringify({
+        image: base64Image,
+        classCode,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+        locationAccuracy: location?.accuracy
+      })
     });
   },
   getSessions: async () => {

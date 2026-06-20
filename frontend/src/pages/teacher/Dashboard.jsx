@@ -143,6 +143,8 @@ export default function FacultyDashboard() {
   const [year, setYear] = useState('');
   const [semester, setSemester] = useState('');
   const [subject, setSubject] = useState('');
+  const [allowedRadius, setAllowedRadius] = useState('100');
+  const [locating, setLocating] = useState(false);
   const handleLaunchScan = async () => {
     if (!department || !year || !semester || !subject) {
       toast({
@@ -166,9 +168,33 @@ export default function FacultyDashboard() {
     const selectedSubject = availableSubjects.find(([code]) => code === subject);
     const subjectName = selectedSubject?.[1] || subject;
 
+    let teacherLocation;
+    setLocating(true);
+    try {
+      teacherLocation = await new Promise((resolve, reject) => {
+        if (!navigator.geolocation) return reject(new Error('Geolocation is not supported by this browser.'));
+        navigator.geolocation.getCurrentPosition(
+          ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy }),
+          () => reject(new Error('Allow location access to open a geofenced attendance window.')),
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+      });
+    } catch (err) {
+      toast({ title: 'Classroom location unavailable', description: err.message, status: 'error', duration: 5000, isClosable: true });
+      setLocating(false);
+      return;
+    }
+
     let openedSession;
     try {
-      openedSession = await attendanceAPI.toggleSession({ classCode: subject, active: true });
+      openedSession = await attendanceAPI.toggleSession({
+        classCode: subject,
+        active: true,
+        latitude: teacherLocation.latitude,
+        longitude: teacherLocation.longitude,
+        allowedRadiusMeters: Number(allowedRadius),
+        locationRequired: true
+      });
       localStorage.setItem('teacherAttendanceScope', JSON.stringify({
         department,
         year,
@@ -185,8 +211,10 @@ export default function FacultyDashboard() {
         duration: 4000,
         isClosable: true
       });
+      setLocating(false);
       return;
     }
+    setLocating(false);
 
     const sessionQuery = new URLSearchParams({
       stream: department,
@@ -233,6 +261,15 @@ export default function FacultyDashboard() {
             </CardHeader>
             <CardBody>
               <Stack spacing={5}>
+                <FormControl isRequired>
+                  <FormLabel fontSize="sm" fontWeight="bold" color={textLabel}>Classroom geofence radius</FormLabel>
+                  <Select value={allowedRadius} onChange={(e) => setAllowedRadius(e.target.value)} bg={bgSecondary} color={textColor} borderColor={borderColor}>
+                    <option value="50" style={{ background: optionBg, color: textColor }}>50 metres</option>
+                    <option value="100" style={{ background: optionBg, color: textColor }}>100 metres (recommended)</option>
+                    <option value="200" style={{ background: optionBg, color: textColor }}>200 metres</option>
+                  </Select>
+                  <Text mt={1} fontSize="xs" color={textMuted}>Your current device location becomes the classroom centre when the window opens.</Text>
+                </FormControl>
                 <FormControl isRequired>
                   <FormLabel fontSize="sm" fontWeight="bold" color={textLabel}>Select Stream</FormLabel>
                   <Select
@@ -329,6 +366,8 @@ export default function FacultyDashboard() {
                   w="100%"
                   shadow="md"
                   onClick={handleLaunchScan}
+                  isLoading={locating}
+                  loadingText="Getting classroom location"
                   _hover={{ transform: 'translateY(-2px)', shadow: 'lg' }}
                   transition="all 0.2s"
                 >

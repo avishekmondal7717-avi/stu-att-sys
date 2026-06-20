@@ -38,6 +38,29 @@ const Webcam = () => {
   const [loading, setLoading] = useState(Boolean(sessionId));
   const [ending, setEnding] = useState(false);
 
+  // Restore the active session after the teacher visits another sidebar tab.
+  useEffect(() => {
+    if (sessionId) return;
+
+    try {
+      const saved = JSON.parse(localStorage.getItem('teacherAttendanceScope') || 'null');
+      if (!saved?.sessionId || !saved?.classCode) return;
+
+      const restoredQuery = new URLSearchParams({
+        stream: saved.department || '',
+        year: saved.year || '',
+        sem: saved.semester || '',
+        classCode: saved.classCode,
+        subject: saved.subjectName || saved.classCode,
+        sessionId: String(saved.sessionId),
+      });
+      navigate(`/webcam?${restoredQuery.toString()}`, { replace: true });
+    } catch (error) {
+      console.error('Could not restore active attendance session:', error);
+      localStorage.removeItem('teacherAttendanceScope');
+    }
+  }, [navigate, sessionId]);
+
   const loadLiveSession = useCallback(async (showError = false) => {
     if (!sessionId) {
       setLoading(false);
@@ -71,6 +94,7 @@ const Webcam = () => {
     setEnding(true);
     try {
       await attendanceAPI.toggleSession({ classCode, active: false });
+      localStorage.removeItem('teacherAttendanceScope');
       setSession((current) => current ? { ...current, isActive: false } : current);
       message.success(`${classCode} attendance session closed`);
     } catch (error) {

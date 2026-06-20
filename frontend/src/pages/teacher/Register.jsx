@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { message, notification } from "antd";
 import "../Register.css";
-import { authAPI, teacherAPI } from "../../services/api";
+import { authAPI } from "../../services/api";
 
 const TeacherRegister = () => {
   const navigate = useNavigate();
@@ -43,8 +43,6 @@ const TeacherRegister = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [dobError, setDobError] = useState("");
   const [teacherIdError, setTeacherIdError] = useState("");
-  const [createdTeacherId, setCreatedTeacherId] = useState(null);
-  const [createdTeacherPayload, setCreatedTeacherPayload] = useState(null);
 
   const getDOBBoundaries = () => {
     const today = new Date();
@@ -127,18 +125,6 @@ const TeacherRegister = () => {
     if (file) {
       setProfilePhoto(file);
       setPhotoPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const simulateTeacherEmailVerification = async () => {
-    try {
-      const updatedPayload = { ...createdTeacherPayload, status: "Active" };
-      await teacherAPI.update(createdTeacherId, updatedPayload);
-      localStorage.removeItem(`pending_verification_${formData.email}`);
-      setSuccessMessage("Teacher email verified successfully! You can now log in.");
-    } catch (err) {
-      console.error(err);
-      setEmailError(err.message || "Simulation verification failed.");
     }
   };
 

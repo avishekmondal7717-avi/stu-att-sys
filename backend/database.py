@@ -191,6 +191,16 @@ def init_db():
     )
     """)
     cursor.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS sessionid INTEGER;")
+    cursor.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS submitted_latitude DOUBLE PRECISION;")
+    cursor.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS submitted_longitude DOUBLE PRECISION;")
+    cursor.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS location_accuracy DOUBLE PRECISION;")
+    cursor.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS distance_meters DOUBLE PRECISION;")
+    cursor.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS face_confidence DOUBLE PRECISION;")
+    cursor.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS verification_method TEXT;")
+    cursor.execute("ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;")
+    cursor.execute("ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;")
+    cursor.execute("ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS allowed_radius_meters DOUBLE PRECISION NOT NULL DEFAULT 100;")
+    cursor.execute("ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS location_required BOOLEAN NOT NULL DEFAULT FALSE;")
     cursor.execute("ALTER TABLE attendance DROP CONSTRAINT IF EXISTS attendance_rollnumber_date_markedby_key;")
     cursor.execute("ALTER TABLE attendance DROP CONSTRAINT IF EXISTS attendance_rollnumber_date_key;")
     cursor.execute("""
@@ -222,6 +232,10 @@ def init_db():
     # Ensure teachers.subjects column exists for storing comma-separated subjects
     try:
         cursor.execute("ALTER TABLE teachers ADD COLUMN IF NOT EXISTS subjects TEXT;")
+        # Teacher self-registration is immediately active; migrate legacy
+        # accounts created under the former email-verification workflow.
+        cursor.execute("UPDATE teachers SET status = 'Active' WHERE status = 'Pending Verification';")
+        cursor.execute("UPDATE users SET status = 'Active' WHERE role = 'teacher' AND status = 'Pending Verification';")
     except Exception as e:
         print(f"Warning: could not ensure teachers.subjects column: {e}")
 
@@ -233,6 +247,21 @@ def init_db():
         action TEXT NOT NULL,
         actor TEXT NOT NULL,
         status TEXT NOT NULL
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS attendance_verification_audit (
+        id SERIAL PRIMARY KEY,
+        sessionid INTEGER REFERENCES attendance_sessions(id) ON DELETE SET NULL,
+        user_email TEXT,
+        classcode TEXT,
+        outcome TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        submitted_latitude DOUBLE PRECISION,
+        submitted_longitude DOUBLE PRECISION,
+        location_accuracy DOUBLE PRECISION,
+        distance_meters DOUBLE PRECISION,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
     """)
 

@@ -31,6 +31,8 @@ import cv2
 import numpy as np
 import base64
 import threading
+import time
+import math
 from pathlib import Path
 from fastapi.concurrency import run_in_threadpool
 from datetime import timezone, timedelta
@@ -72,6 +74,10 @@ LOCAL_TZ = timezone(timedelta(hours=LOCAL_OFFSET))
 
 # OpenCV Lock to prevent race conditions on shared detector in thread pool
 opencv_lock = threading.Lock()
+liveness_lock = threading.Lock()
+liveness_challenges = {}
+LIVENESS_CHALLENGE_TTL_SECONDS = 30
+LIVENESS_YAW_CHANGE = float(os.environ.get("LIVENESS_YAW_CHANGE", "0.18"))
 
 def get_utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -153,6 +159,7 @@ def extract_face_embedding(frame: np.ndarray):
             face_crop = frame[y1:y2, x1:x2]
             
             is_live = False
+            yaw_ratio = 1.0
             if face_crop.size > 0:
                 gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
                 laplacian_var = cv2.Laplacian(gray_crop, cv2.CV_64F).var()
@@ -164,8 +171,51 @@ def extract_face_embedding(frame: np.ndarray):
 
             aligned_face = recognizer.alignCrop(frame, face)
             feature = recognizer.feature(aligned_face)
-            return feature.flatten().tolist(), box.tolist(), bool(is_live)
-        return None, None, False
+            return feature.flatten().tolist(), box.tolist(), bool(is_live), {"yaw_ratio": float(yaw_ratio)}
+        return None, None, False, {}
+
+def verify_motion_liveness(key: str, yaw_ratio: float, frame_quality_ok: bool):
+    """Require opposite head movements across frames before accepting a scan."""
+    now = time.monotonic()
+    with liveness_lock:
+        state = liveness_challenges.get(key)
+        if state and now - state["updated"] > LIVENESS_CHALLENGE_TTL_SECONDS:
+            state = None
+
+        if not frame_quality_ok:
+            liveness_challenges.pop(key, None)
+            return False, "spoof", "Use a clearly lit live face"
+
+        if not state:
+            liveness_challenges[key] = {
+                "baseline": yaw_ratio,
+                "stage": "first_turn",
+                "direction": None,
+                "updated": now,
+            }
+            return False, "verifying", "Turn your head slightly left or right"
+
+        state["updated"] = now
+        baseline = state["baseline"]
+        relative_change = (yaw_ratio - baseline) / max(abs(baseline), 0.01)
+
+        if state["stage"] == "first_turn":
+            if abs(relative_change) < LIVENESS_YAW_CHANGE:
+                return False, "verifying", "Turn your head slightly left or right"
+            state["direction"] = 1 if relative_change > 0 else -1
+            state["stage"] = "opposite_turn"
+            return False, "verifying", "Now turn your head the other way"
+
+        opposite_reached = (
+            relative_change < -LIVENESS_YAW_CHANGE
+            if state["direction"] > 0
+            else relative_change > LIVENESS_YAW_CHANGE
+        )
+        if not opposite_reached:
+            return False, "verifying", "Now turn your head the other way"
+
+        liveness_challenges.pop(key, None)
+        return True, "live", "Liveness verified"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -354,10 +404,27 @@ class StudentCreate(BaseModel):
 class ScanRequest(BaseModel):
     image: str # Base64 image string
     classCode: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    locationAccuracy: Optional[float] = None
 
 class ToggleSessionRequest(BaseModel):
     classCode: str
     active: bool
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    allowedRadiusMeters: Optional[float] = 100
+    locationRequired: Optional[bool] = True
+
+
+def haversine_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Return great-circle distance between two WGS84 coordinates."""
+    earth_radius = 6371000.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    return earth_radius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 class LoginRequest(BaseModel):
     email: str
@@ -442,7 +509,7 @@ async def register_student(payload: StudentRegisterRequest):
                 print("[Register] Error: Invalid photo data (failed base64 decoding)")
                 raise HTTPException(status_code=400, detail="Invalid photo data.")
                 
-            embedding, _, _ = await run_in_threadpool(extract_face_embedding, frame)
+            embedding, _, _, _ = await run_in_threadpool(extract_face_embedding, frame)
             if not embedding:
                 print("[Register] Error: Could not detect a clear face in the photo")
                 raise HTTPException(status_code=400, detail="Could not detect a clear face in the provided scan. Please try again.")
@@ -511,7 +578,7 @@ async def register_teacher(payload: TeacherRegisterRequest):
                 RETURNING id
             """, (
                 payload.teacherId, payload.fullName, payload.email, payload.contact,
-                payload.department, subjects_csv, "Pending Verification", f"https://i.pravatar.cc/40?img={hash(payload.teacherId) % 70 + 50}"
+                payload.department, subjects_csv, "Active", f"https://i.pravatar.cc/40?img={hash(payload.teacherId) % 70 + 50}"
             ))
             
             teacher_db_id = cursor.fetchone()[0]
@@ -522,7 +589,7 @@ async def register_teacher(payload: TeacherRegisterRequest):
                 INSERT INTO users (email, password, role, referenceId, fullName, status)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (
-                payload.email, hashed, 'teacher', payload.teacherId, payload.fullName, "Pending Verification"
+                payload.email, hashed, 'teacher', payload.teacherId, payload.fullName, "Active"
             ))
             
             conn.commit()
@@ -1001,7 +1068,7 @@ async def enroll_student_faces(
             frame = decode_base64_image(b64_img)
             if frame is None:
                 continue
-            embedding, _, _ = await run_in_threadpool(extract_face_embedding, frame)
+            embedding, _, _, _ = await run_in_threadpool(extract_face_embedding, frame)
             if embedding:
                 cursor.execute(
                     "UPDATE students SET embedding = %s::vector WHERE id = %s",
@@ -1103,13 +1170,18 @@ async def get_attendance_session_detail(
 
         cursor.execute("""
             SELECT
-                r.rollnumber, r.studentname, r.department, r.semester,
+                COALESCE(r.rollnumber, a.rollnumber) AS rollnumber,
+                COALESCE(r.studentname, a.studentname) AS studentname,
+                COALESCE(r.department, a.department) AS department,
+                COALESCE(r.semester, student.semester::text) AS semester,
                 a.id, a.timein, a.timeout, a.status, a.markedby
             FROM attendance_session_roster r
-            LEFT JOIN attendance a
+            FULL OUTER JOIN attendance a
               ON a.sessionid = r.sessionid AND a.rollnumber = r.rollnumber
-            WHERE r.sessionid = %s
-            ORDER BY r.rollnumber
+            LEFT JOIN students student
+              ON student.rollnumber = COALESCE(r.rollnumber, a.rollnumber)
+            WHERE COALESCE(r.sessionid, a.sessionid) = %s
+            ORDER BY COALESCE(r.rollnumber, a.rollnumber)
         """, (session_id,))
         rows = cursor.fetchall()
 
@@ -1474,7 +1546,18 @@ async def get_active_sessions(current_user: Optional[dict] = Depends(get_current
 
     with db_session() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT classcode, classname, isactive FROM active_sessions ORDER BY classcode")
+        cursor.execute("""
+            SELECT active.classcode, active.classname, active.isactive,
+                   history.location_required, history.allowed_radius_meters
+            FROM active_sessions active
+            LEFT JOIN LATERAL (
+                SELECT location_required, allowed_radius_meters
+                FROM attendance_sessions
+                WHERE classcode = active.classcode AND isactive = TRUE
+                ORDER BY id DESC LIMIT 1
+            ) history ON TRUE
+            ORDER BY active.classcode
+        """)
         rows = cursor.fetchall()
 
     sessions = []
@@ -1482,7 +1565,9 @@ async def get_active_sessions(current_user: Optional[dict] = Depends(get_current
         sessions.append({
             "classCode": r["classcode"],
             "className": r["classname"],
-            "isActive": r["isactive"]
+            "isActive": r["isactive"],
+            "locationRequired": bool(r.get("location_required")),
+            "allowedRadiusMeters": r.get("allowed_radius_meters"),
         })
 
     # If no authenticated user info, return all
@@ -1562,6 +1647,14 @@ async def toggle_active_session(payload: ToggleSessionRequest, current_user: dic
         if not payload.classCode.startswith(prefix + "-"):
             raise HTTPException(status_code=403, detail="You can only toggle sessions for your own department")
 
+    if payload.active and payload.locationRequired:
+        if payload.latitude is None or payload.longitude is None:
+            raise HTTPException(status_code=400, detail="Teacher location is required to open this attendance window.")
+        if not (-90 <= payload.latitude <= 90 and -180 <= payload.longitude <= 180):
+            raise HTTPException(status_code=400, detail="Invalid teacher location coordinates.")
+        if not payload.allowedRadiusMeters or not (20 <= payload.allowedRadiusMeters <= 1000):
+            raise HTTPException(status_code=400, detail="Allowed radius must be between 20 and 1000 metres.")
+
     teacher_dept = teacher_row["department"] if current_user.get("role") != "admin" else payload.classCode.split("-")[0]
     teacher_name = teacher_row["fullname"] if current_user.get("role") != "admin" else current_user.get("fullName", "Administrator")
     session_semester = payload.classCode.split("-")[-1][:1]
@@ -1593,9 +1686,10 @@ async def toggle_active_session(payload: ToggleSessionRequest, current_user: dic
                 cursor.execute("""
                     INSERT INTO attendance_sessions (
                         classcode, classname, department, semester,
-                        teacher_email, teacher_name, session_date, isactive
+                        teacher_email, teacher_name, session_date, isactive,
+                        latitude, longitude, allowed_radius_meters, location_required
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s, %s)
                     RETURNING id
                 """, (
                     payload.classCode,
@@ -1605,6 +1699,10 @@ async def toggle_active_session(payload: ToggleSessionRequest, current_user: dic
                     current_user.get("email"),
                     teacher_name,
                     datetime.now(LOCAL_TZ).strftime("%Y-%m-%d"),
+                    payload.latitude,
+                    payload.longitude,
+                    payload.allowedRadiusMeters or 100,
+                    bool(payload.locationRequired),
                 ))
                 session_id = cursor.fetchone()["id"]
                 cursor.execute("""
@@ -1647,7 +1745,8 @@ async def scan_attendance(request: ScanRequest, current_user: Optional[dict] = D
             if not row or not row["isactive"]:
                 raise HTTPException(status_code=400, detail="Attendance window is closed for this class.")
             cursor.execute("""
-                SELECT id, department, semester
+                SELECT id, department, semester, latitude, longitude,
+                       allowed_radius_meters, location_required
                 FROM attendance_sessions
                 WHERE classcode = %s AND isactive = TRUE
                 ORDER BY id DESC LIMIT 1
@@ -1659,12 +1758,45 @@ async def scan_attendance(request: ScanRequest, current_user: Optional[dict] = D
                     detail="Class session record is unavailable. Reopen the attendance window."
                 )
 
+            if session_context["location_required"]:
+                if request.latitude is None or request.longitude is None or request.locationAccuracy is None:
+                    raise HTTPException(status_code=400, detail="Location permission is required for this attendance session.")
+                if not (-90 <= request.latitude <= 90 and -180 <= request.longitude <= 180):
+                    raise HTTPException(status_code=400, detail="Invalid location coordinates.")
+                max_accuracy = float(os.environ.get("MAX_LOCATION_ACCURACY_METERS", "100"))
+                distance_meters = haversine_distance_meters(
+                    session_context["latitude"], session_context["longitude"],
+                    request.latitude, request.longitude,
+                )
+                location_reason = None
+                if request.locationAccuracy <= 0 or request.locationAccuracy > max_accuracy:
+                    location_reason = f"Location accuracy is too low ({request.locationAccuracy:.0f}m). Move near a window and retry."
+                elif distance_meters > session_context["allowed_radius_meters"]:
+                    location_reason = (
+                        f"You are {distance_meters:.0f}m from the classroom; "
+                        f"the allowed radius is {session_context['allowed_radius_meters']:.0f}m."
+                    )
+                if location_reason:
+                    cursor.execute("""
+                        INSERT INTO attendance_verification_audit (
+                            sessionid, user_email, classcode, outcome, reason,
+                            submitted_latitude, submitted_longitude, location_accuracy, distance_meters
+                        ) VALUES (%s, %s, %s, 'rejected', %s, %s, %s, %s, %s)
+                    """, (
+                        session_context["id"], current_user.get("email") if current_user else None,
+                        request.classCode, location_reason, request.latitude, request.longitude,
+                        request.locationAccuracy, distance_meters,
+                    ))
+                    conn.commit()
+                    raise HTTPException(status_code=403, detail=location_reason)
+                session_context["distance_meters"] = distance_meters
+
     # Phase 2: CPU-heavy OpenCV inference — NO DB connection held
     frame = decode_base64_image(request.image)
     if frame is None:
         return {"faces": []}
 
-    embedding, box, is_live = await run_in_threadpool(extract_face_embedding, frame)
+    embedding, box, frame_quality_live, liveness_metrics = await run_in_threadpool(extract_face_embedding, frame)
     
     updated_faces = []
     
@@ -1702,7 +1834,9 @@ async def scan_attendance(request: ScanRequest, current_user: Optional[dict] = D
         face_info = {
             "box": box,
             "name": "Unknown",
-            "is_live": is_live,
+            "is_live": False,
+            "liveness_status": "verifying",
+            "liveness_prompt": "Hold still while your face is verified",
             "identity_verified": True,
             "marked": False,
             "distance": 1.0
@@ -1716,6 +1850,16 @@ async def scan_attendance(request: ScanRequest, current_user: Optional[dict] = D
             
             face_info["name"] = friendly_name
             face_info["distance"] = match["distance"]
+
+            challenge_key = f"{current_user.get('email') if current_user else 'anonymous'}:{request.classCode or 'none'}:{roll}"
+            is_live, liveness_status, liveness_prompt = verify_motion_liveness(
+                challenge_key,
+                liveness_metrics.get("yaw_ratio", 1.0),
+                frame_quality_live,
+            )
+            face_info["is_live"] = is_live
+            face_info["liveness_status"] = liveness_status
+            face_info["liveness_prompt"] = liveness_prompt
 
             if is_live:
                 if current_user and current_user.get("role") == "student":
@@ -1749,14 +1893,25 @@ async def scan_attendance(request: ScanRequest, current_user: Optional[dict] = D
                     cursor.execute("""
                         INSERT INTO attendance (
                             rollnumber, studentname, department, date,
-                            timein, timeout, status, markedby, sessionid
+                            timein, timeout, status, markedby, sessionid,
+                            submitted_latitude, submitted_longitude, location_accuracy,
+                            distance_meters, face_confidence, verification_method
                         )
-                        VALUES (%s, %s, %s, %s, %s, 'Pending', 'Present', %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, 'Pending', 'Present', %s, %s,
+                                %s, %s, %s, %s, %s, 'face+liveness+geofence')
                         ON CONFLICT(sessionid, rollnumber) WHERE sessionid IS NOT NULL
-                        DO UPDATE SET status='Present', timein=%s, markedby=%s
+                        DO UPDATE SET status='Present', timein=%s, markedby=%s,
+                            submitted_latitude=%s, submitted_longitude=%s,
+                            location_accuracy=%s, distance_meters=%s,
+                            face_confidence=%s, verification_method='face+liveness+geofence'
                     """, (
                         roll, friendly_name, dept, today_local, utc_now_iso,
-                        marked_by_str, session_id, utc_now_iso, marked_by_str
+                        marked_by_str, session_id, request.latitude, request.longitude,
+                        request.locationAccuracy, session_context.get("distance_meters") if session_context else None,
+                        max(0.0, 1.0 - float(match["distance"])),
+                        utc_now_iso, marked_by_str, request.latitude, request.longitude,
+                        request.locationAccuracy, session_context.get("distance_meters") if session_context else None,
+                        max(0.0, 1.0 - float(match["distance"])),
                     ))
                     conn.commit()
                     face_info["marked"] = True
