@@ -109,7 +109,6 @@ const AttendanceTable = () => {
       width: 100,
       render: (value) => `Sem ${value}`,
     },
-    { title: 'Time In', dataIndex: 'timeIn', key: 'timeIn', width: 130 },
     {
       title: 'Status',
       dataIndex: 'status',

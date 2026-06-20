@@ -1558,9 +1558,6 @@ def export_attendance_report(
         
         data = []
         for r in rows:
-            # Format to local time
-            time_in_local = format_utc_to_local_time(r["timein"])
-            time_out_local = format_utc_to_local_time(r["timeout"])
             date_local = format_utc_to_local_date(r["timein"]) if r["timein"] not in ["-", "Pending", None] else r["date"]
             
             data.append({
@@ -1571,8 +1568,6 @@ def export_attendance_report(
                 "Class Code": r["classcode"],
                 "Subject": r["classname"],
                 "Date": date_local or "-",
-                "Time In": time_in_local or "-",
-                "Time Out": time_out_local or "-",
                 "Status": r["status"] or "Absent",
                 "Marked By": r["markedby"] or "-"
             })
@@ -1611,12 +1606,12 @@ def export_attendance_report(
                     cell.border = border
                     
                     val = str(cell.value or '')
-                    if col_num in [1, 4, 5, 7, 8, 9, 11]:
+                    if col_num in [1, 4, 5, 7, 8, 9]:
                         cell.alignment = center_align
                     else:
                         cell.alignment = left_align
                         
-                    if col_num == 10: # Status
+                    if col_num == 8: # Status
                         cell.alignment = center_align
                         if val == "Present":
                             cell.font = Font(name='Roboto', size=10, bold=True, color='15803D')
@@ -1654,13 +1649,10 @@ def export_attendance_report(
         writer.writerow([
             "Roll Number", "Full Name", "Department", "Semester",
             "Class Code", "Subject",
-            "Date", "Time In", "Time Out", "Status", "Marked By"
+            "Date", "Status", "Marked By"
         ])
         
         for r in rows:
-            # Format to local time
-            time_in_local = format_utc_to_local_time(r["timein"])
-            time_out_local = format_utc_to_local_time(r["timeout"])
             date_local = format_utc_to_local_date(r["timein"]) if r["timein"] not in ["-", "Pending", None] else r["date"]
             
             writer.writerow([
@@ -1671,8 +1663,6 @@ def export_attendance_report(
                 r["classcode"],
                 r["classname"],
                 date_local or "-",
-                time_in_local or "-",
-                time_out_local or "-",
                 r["status"] or "Absent",
                 r["markedby"] or "-"
             ])

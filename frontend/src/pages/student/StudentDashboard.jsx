@@ -286,11 +286,6 @@ export default function StudentDashboard() {
                     <Badge colorScheme={log.status === 'Present' ? 'green' : log.status === 'Pending' ? 'orange' : 'red'} variant="subtle" px={2.5} py={0.5} borderRadius="md">
                       {log.status}
                     </Badge>
-                    {log.status === 'Present' && (
-                      <Text fontSize="2xs" color={textSecondary} mt={1}>
-                        {log.timeIn}
-                      </Text>
-                    )}
                   </Box>
                 </Flex>
               ))

@@ -87,8 +87,6 @@ export default function StudentLogs() {
         );
       } 
     },
-    { title: 'Time In', dataIndex: 'timeIn', key: 'timeIn' },
-    { title: 'Time Out', dataIndex: 'timeOut', key: 'timeOut' },
     {
       title: 'Status', 
       dataIndex: 'status', 

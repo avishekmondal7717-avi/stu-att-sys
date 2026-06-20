@@ -13,7 +13,6 @@ import {
 } from 'antd';
 import {
   CheckCircleOutlined,
-  ClockCircleOutlined,
   DashboardOutlined,
   StopOutlined,
   UserOutlined,
@@ -156,18 +155,6 @@ const Webcam = () => {
         <Space size={6}>
           <CheckCircleOutlined className="live-verified-icon" />
           <span>{value || 'Face recognition'}</span>
-        </Space>
-      ),
-    },
-    {
-      title: 'Check-in Time',
-      dataIndex: 'timeIn',
-      key: 'timeIn',
-      width: 150,
-      render: (value) => (
-        <Space size={6}>
-          <ClockCircleOutlined />
-          <strong>{value}</strong>
         </Space>
       ),
     },

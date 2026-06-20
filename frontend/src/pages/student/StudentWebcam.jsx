@@ -248,12 +248,9 @@ export default function StudentWebcam() {
               return;
             }
 
-            const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const newRecord = {
               key: String(logs.length + 1),
               date: todayStr,
-              timeIn: currentTime,
-              timeOut: 'Pending',
               status: 'Present',
               type: `Face ID (${classCode})`,
             };
