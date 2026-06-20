@@ -119,7 +119,7 @@ const Reports = () => {
     <div>
       <PageHeader title="Reports" subtitle="View attendance insights and analytics" breadcrumbs={[{ label: 'Reports' }]} />
 
-      <div style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="surface-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '16px 20px', marginBottom: 16, boxShadow: 'var(--shadow-sm)', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <RangePicker value={dateRange} onChange={setDateRange} format="DD MMM YYYY" style={{ width: 280 }} />
         <Select placeholder="All Departments" allowClear style={{ width: 200 }} value={filterDept || undefined} onChange={setFilterDept}>
           {DEPARTMENTS.map((d) => <Option key={d} value={d}>{d}</Option>)}
@@ -202,13 +202,14 @@ const Reports = () => {
             </Col>
           </Row>
 
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+          <div className="surface-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 24, boxShadow: 'var(--shadow-sm)' }}>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 16 }}>Department Wise Report</div>
             <Table
               columns={deptColumns}
               dataSource={stats.departmentStats}
               rowKey="name"
               pagination={false}
+              scroll={{ x: 650 }}
               size="middle"
             />
           </div>

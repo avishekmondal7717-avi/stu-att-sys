@@ -201,7 +201,7 @@ export default function ManageStudents() {
     <div>
       <PageHeader title="Manage Students" subtitle="Centralized student registration directory and CRUD hub" breadcrumbs={[{ label: 'Manage Students' }]} />
 
-      <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+      <div className="surface-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 24, boxShadow: 'var(--shadow-sm)' }}>
         <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
           <Input
             prefix={<SearchOutlined style={{ color: '#ccc' }} />}
@@ -230,6 +230,7 @@ export default function ManageStudents() {
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (t, r) => `Showing ${r[0]} to ${r[1]} of ${t} students` }}
+          scroll={{ x: 1180 }}
           size="middle"
         />
       </div>

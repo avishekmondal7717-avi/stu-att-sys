@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import './PageHeader.css';
 
 const PageHeader = ({ title, subtitle, breadcrumbs = [] }) => (
-  <div style={{ marginBottom: 24 }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-      <div>
+  <div className="page-header">
+    <div className="page-header-row">
+      <div className="page-header-copy">
         <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>{title}</h1>
         {subtitle && <p style={{ margin: '4px 0 0', color: 'var(--text-secondary)', fontSize: 14 }}>{subtitle}</p>}
       </div>

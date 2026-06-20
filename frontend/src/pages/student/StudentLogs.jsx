@@ -180,6 +180,7 @@ export default function StudentLogs() {
             pagination={{ pageSize: 10, hideOnSinglePage: true }}
             size="middle"
             rowKey="key"
+            scroll={{ x: 760 }}
             style={{ marginTop: 12 }}
           />
         )}

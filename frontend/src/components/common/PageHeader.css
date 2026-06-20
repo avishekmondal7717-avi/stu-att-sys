@@ -25,3 +25,12 @@
 .dark .page-breadcrumb-current {
   color: var(--text-primary);
 }
+
+@media (max-width: 720px) {
+  .page-header-row { flex-direction: column; gap: 8px; }
+  .page-breadcrumb { width: 100%; overflow-x: auto; padding-bottom: 2px; }
+}
+.page-header { margin-bottom: 24px; min-width: 0; }
+.page-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; min-width: 0; }
+.page-header-copy { min-width: 0; }
+.page-breadcrumb { flex: 0 1 auto; min-width: 0; }

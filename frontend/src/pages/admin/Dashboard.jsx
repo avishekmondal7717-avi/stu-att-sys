@@ -175,7 +175,7 @@ export default function AdminDashboard() {
       </SimpleGrid>
 
       {/* Roster Management Table Container */}
-      <Card borderRadius="xl" shadow="sm" bg="white" overflow="hidden">
+      <Card borderRadius="xl" shadow="sm" bg="var(--bg-secondary)" border="1px solid var(--border-color)" overflow="hidden">
         <Box p={5} borderBottom="1px solid" borderColor="gray.100">
           <Heading size="md" color="gray.700">Master Roster Directory</Heading>
           <Text fontSize="xs" color="gray.400">Manage active access permissions and biometric credentials across roles</Text>
@@ -219,7 +219,7 @@ export default function AdminDashboard() {
 
 export function AdminAuditLogs({ logs }) {
   return (
-    <Card borderRadius="xl" shadow="sm" overflow="hidden" mt={6} bg="white">
+    <Card borderRadius="xl" shadow="sm" overflow="hidden" mt={6} bg="var(--bg-secondary)" border="1px solid var(--border-color)">
       <CardHeader bg="gray.50" py={4} borderBottom="1px solid" borderColor="gray.100">
         <Heading size="xs" color="gray.700" textTransform="uppercase" letterSpacing="wider">Immutable System Action Ledger</Heading>
       </CardHeader>
@@ -252,4 +252,3 @@ export function AdminAuditLogs({ logs }) {
     </Card>
   );
 }
-

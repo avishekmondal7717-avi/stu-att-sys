@@ -47,7 +47,7 @@ const StudentList = () => {
   const columns = [
     { title: '#', dataIndex: 'id', key: 'id', width: 50 },
     {
-      title: 'Student', key: 'fullName',
+      title: 'Student', key: 'fullName', width: 240,
       render: (_, r) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Avatar size={36} style={{ backgroundColor: '#1e40af' }}>{r.fullName ? r.fullName[0] : 'S'}</Avatar>
@@ -58,9 +58,9 @@ const StudentList = () => {
         </div>
       ),
     },
-    { title: 'Roll Number', dataIndex: 'rollNumber', key: 'rollNumber' },
-    { title: 'Department', dataIndex: 'department', key: 'department' },
-    { title: 'Course', dataIndex: 'course', key: 'course' },
+    { title: 'Roll Number', dataIndex: 'rollNumber', key: 'rollNumber', width: 150 },
+    { title: 'Department', dataIndex: 'department', key: 'department', width: 180 },
+    { title: 'Course', dataIndex: 'course', key: 'course', width: 100 },
     { title: 'Semester', dataIndex: 'semester', key: 'semester', width: 90, align: 'center' },
     {
       title: 'Status', dataIndex: 'status', key: 'status', width: 90,
@@ -80,7 +80,7 @@ const StudentList = () => {
     <div>
       <PageHeader title="Students List" breadcrumbs={[{ label: 'Students', path: '/students/list' }, { label: 'Student List' }]} />
 
-      <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+      <div className="surface-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 24, boxShadow: 'var(--shadow-sm)' }}>
         <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
           <Input
             prefix={<SearchOutlined style={{ color: '#ccc' }} />}
@@ -106,6 +106,7 @@ const StudentList = () => {
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (t, r) => `Showing ${r[0]} to ${r[1]} of ${t} students` }}
+          scroll={{ x: 1020 }}
           size="middle"
         />
       </div>

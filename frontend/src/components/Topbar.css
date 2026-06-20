@@ -256,3 +256,11 @@
 .dark .notif-empty-state {
   color: #a1a1aa;
 }
+
+@media (max-width: 640px) {
+  .topbar { padding: 0 14px; }
+  .topbar-right { gap: 6px; }
+  .admin-name { display: none; }
+  .admin-profile { padding: 4px; }
+  .notif-dropdown { width: min(320px, calc(100vw - 28px)); right: -44px; }
+}

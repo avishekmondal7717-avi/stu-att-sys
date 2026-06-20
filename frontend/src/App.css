@@ -45,7 +45,7 @@
 
 :root.dark {
   --bg-primary: #09090b; /* Zinc 950 */
-  --bg-secondary: #09090b;
+  --bg-secondary: #161618;
   --bg-hover: #18181b; /* Zinc 900 */
   --border-color: #27272a; /* Zinc 800 */
   
@@ -53,8 +53,9 @@
   --text-secondary: #a1a1aa; /* Zinc 400 */
   --text-muted: #71717a; /* Zinc 500 */
   
-  --bg-topbar: #09090b;
-  --bg-sidebar: #09090b;
+  --bg-topbar: #111113;
+  --bg-sidebar: #111113;
+  --bg-card: #161618;
   --bg-sidebar-hover: #18181b;
   --bg-sidebar-active: #27272a;
   
@@ -172,6 +173,27 @@ optgroup {
   transition: background-color 0.2s ease;
 }
 
+.page-content > * { min-width: 0; }
+.ant-table-wrapper,
+.ant-spin-nested-loading,
+.ant-spin-container,
+.ant-table-container { min-width: 0; max-width: 100%; }
+.ant-table-content { overflow-x: auto !important; }
+.ant-table-thead > tr > th { white-space: nowrap; }
+.ant-pagination { flex-wrap: wrap; row-gap: 8px; }
+.ant-segmented { max-width: 100%; overflow-x: auto; }
+
+@media (max-width: 768px) {
+  .page-content { padding: 20px 16px; }
+  .ant-card-body { min-width: 0; }
+}
+
+@media (max-width: 900px) {
+  .main-area { margin-left: 0; min-width: 0; }
+  .sidebar-open .sidebar { transform: translateX(0); box-shadow: 8px 0 24px rgba(0, 0, 0, 0.18); }
+  .sidebar-closed .sidebar { transform: translateX(-260px); }
+}
+
 /* ==========================================================================
    MUTED GLOBAL OVERRIDES FOR ANT DESIGN / THIRD PARTY COMPONENTS
    ========================================================================== */
@@ -183,6 +205,12 @@ optgroup {
   box-shadow: var(--shadow-sm) !important;
   color: var(--text-primary) !important;
   transition: background-color 0.2s, border-color 0.2s !important;
+}
+
+.dark .ant-card,
+.dark .surface-card {
+  border: 1px solid #2d2d31 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22) !important;
 }
 
 .ant-card-head {

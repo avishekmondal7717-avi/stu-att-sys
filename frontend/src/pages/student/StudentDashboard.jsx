@@ -45,7 +45,7 @@ export default function StudentDashboard() {
   const fullName = currentUser ? currentUser.fullName : (localStorage.getItem("userFullName") || "Student");
 
   // Modern UI theme variables
-  const cardBg = theme === 'dark' ? '#09090b' : '#ffffff';
+  const cardBg = theme === 'dark' ? '#161618' : '#ffffff';
   const cardBorderColor = theme === 'dark' ? '#27272a' : '#e4e4e7';
   const textPrimary = theme === 'dark' ? '#f4f4f5' : '#0f172a';
   const textSecondary = theme === 'dark' ? '#a1a1aa' : '#71717a';

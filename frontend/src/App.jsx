@@ -44,7 +44,7 @@ function ThemeSync({ theme }) {
 }
 
 function TeacherLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 900);
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
 
   useEffect(() => {
@@ -72,7 +72,7 @@ function TeacherLayout() {
 
 function StudentLayout() {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 900);
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   
   // Shared state for student attendance
@@ -214,7 +214,7 @@ function StudentLayout() {
 }
 
 function AdminLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 900);
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
 
   useEffect(() => {

@@ -55,7 +55,7 @@ export default function FullAnalytics() {
     <div>
       <PageHeader title="Full Analytics" subtitle="Access system-wide attendance reports and historical performance" breadcrumbs={[{ label: 'Full Analytics' }]} />
 
-      <div style={{ background: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', gap: 12, alignItems: 'center' }}>
+      <div className="surface-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 16, marginBottom: 16, boxShadow: 'var(--shadow-sm)', display: 'flex', gap: 12, alignItems: 'center' }}>
         <span>Filter Report Semester:</span>
         <Select defaultValue="All" style={{ width: 150 }} onChange={setSelectedSemester}>
           <Option value="All">All Semesters</Option>
@@ -126,7 +126,7 @@ export default function FullAnalytics() {
 
         <Col xs={24} lg={12}>
           <Card title="Department Statistics Summary" style={{ borderRadius: 12 }}>
-            <Table dataSource={data.departmentStats} columns={reportColumns} rowKey="name" pagination={false} size="small" />
+            <Table dataSource={data.departmentStats} columns={reportColumns} rowKey="name" pagination={false} size="small" scroll={{ x: 620 }} />
           </Card>
         </Col>
       </Row>
