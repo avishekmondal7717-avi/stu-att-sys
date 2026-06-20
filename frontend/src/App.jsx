@@ -10,6 +10,8 @@ import Topbar from './components/Topbar';
 import Register from './pages/Register';
 import TeacherRegister from './pages/teacher/Register';
 import AdminLogin from "./pages/AdminLogin";
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/teacher/Dashboard';
 import StudentList from './pages/teacher/StudentList';
 import AttendanceTable from './pages/teacher/AttendanceTable';
@@ -79,6 +81,7 @@ function StudentLayout() {
   const [logs, setLogs] = useState([]);
   const [presentCount, setPresentCount] = useState(0);
   const [absentCount, setAbsentCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
   const [totalClasses, setTotalClasses] = useState(0);
   const [activeSessions, setActiveSessions] = useState([]);
   const [readSessionCodes, setReadSessionCodes] = useState(() => new Set());
@@ -113,11 +116,13 @@ function StudentLayout() {
       const fetchedLogs = res.data || [];
       setLogs(fetchedLogs);
       
-      const present = fetchedLogs.filter(l => l.status === 'Present').length;
-      const absent = fetchedLogs.filter(l => l.status === 'Absent').length;
+      const present = res.summary?.present ?? fetchedLogs.filter(l => l.status === 'Present').length;
+      const absent = res.summary?.absent ?? fetchedLogs.filter(l => l.status === 'Absent').length;
+      const pending = res.summary?.pending ?? fetchedLogs.filter(l => l.status === 'Pending').length;
       setPresentCount(present);
       setAbsentCount(absent);
-      setTotalClasses(present + absent);
+      setPendingCount(pending);
+      setTotalClasses(res.summary?.completed ?? present + absent);
     } catch (err) {
       console.error("Failed to fetch student attendance data:", err);
     }
@@ -199,6 +204,7 @@ function StudentLayout() {
             presentCount, 
             setPresentCount, 
             absentCount, 
+            pendingCount,
             totalClasses, 
             setTotalClasses, 
             fetchStudentData, 
@@ -316,7 +322,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/register" element={<Register />} />
           <Route path="/teacher/register" element={<TeacherRegister />} />
           <Route path="/admin-login" element={<AdminLogin />} />

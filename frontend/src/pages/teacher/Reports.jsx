@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Row, Col, Card, Table, Button, Select, DatePicker, Progress, Spin, message } from 'antd';
+import { Row, Col, Card, Table, Button, Select, DatePicker, Progress, Spin, Segmented, message } from 'antd';
 import { FilterOutlined, DownloadOutlined, TeamOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import dayjs from 'dayjs';
@@ -18,11 +18,14 @@ const DEPT_COLORS = {
   'Civil': '#6b7280',
 };
 
-const DEPARTMENTS = ['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil'];
-
 const Reports = () => {
+  const [periodMode, setPeriodMode] = useState('Monthly');
+  const [periodDate, setPeriodDate] = useState(dayjs());
   const [dateRange, setDateRange] = useState([dayjs().subtract(30, 'day'), dayjs()]);
   const [filterDept, setFilterDept] = useState('');
+  const [departments, setDepartments] = useState([]);
+  const [departmentLocked, setDepartmentLocked] = useState(false);
+  const [exporting, setExporting] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -34,13 +37,22 @@ const Reports = () => {
     attendanceOverview: []
   });
 
+  const effectiveRange = () => {
+    if (periodMode === 'Daily') return [periodDate.startOf('day'), periodDate.endOf('day')];
+    if (periodMode === 'Monthly') return [periodDate.startOf('month'), periodDate.endOf('month')];
+    if (periodMode === 'Yearly') return [periodDate.startOf('year'), periodDate.endOf('year')];
+    return dateRange;
+  };
+
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const [start, end] = dateRange;
+      const [start, end] = effectiveRange();
       const data = await reportsAPI.getStats({
         start_date: start.format('YYYY-MM-DD'),
-        end_date: end.format('YYYY-MM-DD')
+        end_date: end.format('YYYY-MM-DD'),
+        department: filterDept,
+        group_by: periodMode === 'Yearly' ? 'month' : 'day'
       });
       setStats(data);
     } catch (err) {
@@ -53,11 +65,20 @@ const Reports = () => {
 
   useEffect(() => {
     fetchStats();
-  }, [dateRange]);
+  }, [periodMode, periodDate, dateRange, filterDept]);
+
+  useEffect(() => {
+    reportsAPI.getDepartments().then((result) => {
+      setDepartments(result.departments || []);
+      setDepartmentLocked(Boolean(result.locked));
+      if (result.locked && result.departments?.[0]) setFilterDept(result.departments[0]);
+    }).catch(() => message.error('Could not load departments'));
+  }, []);
 
   const handleExport = async (format = 'csv') => {
+    setExporting(format);
     try {
-      const [start, end] = dateRange;
+      const [start, end] = effectiveRange();
       const token = localStorage.getItem("token");
       const query = new URLSearchParams({
         department: filterDept,
@@ -90,7 +111,7 @@ const Reports = () => {
     } catch (err) {
       console.error(err);
       message.error({ content: `Failed to export report ${format === 'xlsx' ? 'Excel' : 'CSV'}`, key: 'export' });
-    }
+    } finally { setExporting(''); }
   };
 
   const pieData = stats.departmentStats.map((d) => ({ 
@@ -120,13 +141,18 @@ const Reports = () => {
       <PageHeader title="Reports" subtitle="View attendance insights and analytics" breadcrumbs={[{ label: 'Reports' }]} />
 
       <div className="surface-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '16px 20px', marginBottom: 16, boxShadow: 'var(--shadow-sm)', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <RangePicker value={dateRange} onChange={setDateRange} format="DD MMM YYYY" style={{ width: 280 }} />
-        <Select placeholder="All Departments" allowClear style={{ width: 200 }} value={filterDept || undefined} onChange={setFilterDept}>
-          {DEPARTMENTS.map((d) => <Option key={d} value={d}>{d}</Option>)}
+        <Segmented options={['Daily', 'Monthly', 'Yearly', 'Custom']} value={periodMode} onChange={setPeriodMode} />
+        {periodMode === 'Custom' ? (
+          <RangePicker value={dateRange} onChange={(value) => value && setDateRange(value)} format="DD MMM YYYY" style={{ width: 280 }} />
+        ) : (
+          <DatePicker value={periodDate} onChange={(value) => value && setPeriodDate(value)} picker={periodMode === 'Yearly' ? 'year' : periodMode === 'Monthly' ? 'month' : 'date'} style={{ width: 180 }} />
+        )}
+        <Select placeholder="All Departments" allowClear={!departmentLocked} disabled={departmentLocked} style={{ width: 220 }} value={filterDept || undefined} onChange={(value) => setFilterDept(value || '')}>
+          {departments.map((d) => <Option key={d} value={d}>{d}</Option>)}
         </Select>
         <Button type="primary" icon={<FilterOutlined />} onClick={fetchStats} style={{ background: '#1e40af' }}>Filter</Button>
-        <Button type="default" icon={<DownloadOutlined />} onClick={() => handleExport('csv')} style={{ marginLeft: 'auto' }}>Export CSV</Button>
-        <Button type="primary" icon={<DownloadOutlined />} onClick={() => handleExport('xlsx')} style={{ background: '#10b981', borderColor: '#10b981' }}>Export Excel</Button>
+        <Button loading={exporting === 'csv'} disabled={Boolean(exporting)} type="default" icon={<DownloadOutlined />} onClick={() => handleExport('csv')} style={{ marginLeft: 'auto' }}>Export CSV</Button>
+        <Button loading={exporting === 'xlsx'} disabled={Boolean(exporting)} type="primary" icon={<DownloadOutlined />} onClick={() => handleExport('xlsx')} style={{ background: '#10b981', borderColor: '#10b981' }}>Export Excel</Button>
       </div>
 
       {loading ? (

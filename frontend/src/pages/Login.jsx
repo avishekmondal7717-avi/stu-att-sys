@@ -295,6 +295,9 @@ export default function Login() {
               />
               <span>Remember me</span>
             </label>
+            <button type="button" onClick={() => navigate('/forgot-password')} style={{ border: 0, background: 'none', color: '#6366f1', cursor: 'pointer', fontWeight: 600 }}>
+              Forgot password?
+            </button>
           </div>
 
           <button className="btn-signin" onClick={handleSignIn}>Sign In</button>

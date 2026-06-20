@@ -26,19 +26,22 @@ import { attendanceAPI } from '../../services/api';
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
-  const { logs = [], presentCount = 0, absentCount = 0, totalClasses = 0, activeSessions = [], theme } = useOutletContext() || {};
+  const { logs = [], presentCount = 0, absentCount = 0, pendingCount = 0, totalClasses = 0, activeSessions = [], theme } = useOutletContext() || {};
   
   // Calculate attendance metrics
   const attendanceRate = totalClasses > 0 ? Math.round((presentCount / totalClasses) * 100) : 0;
   
   // Compliance status styling
-  const isSafe = attendanceRate >= 75;
-  const complianceStatus = isSafe 
+  const hasCompletedSessions = totalClasses > 0;
+  const isSafe = hasCompletedSessions && attendanceRate >= 75;
+  const complianceStatus = !hasCompletedSessions
+    ? 'No completed sessions yet'
+    : isSafe 
     ? `${attendanceRate}% - Attendance Safe` 
     : `${attendanceRate}% - Below Mandatory Threshold (75%)`;
   
-  const complianceColor = isSafe ? '#10b981' : '#ef4444'; // Green or Red
-  const complianceScheme = isSafe ? 'green' : 'red';
+  const complianceColor = !hasCompletedSessions ? '#64748b' : isSafe ? '#10b981' : '#ef4444';
+  const complianceScheme = !hasCompletedSessions ? 'gray' : isSafe ? 'green' : 'red';
 
   const currentUserStr = localStorage.getItem("currentUser");
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
@@ -50,43 +53,6 @@ export default function StudentDashboard() {
   const textPrimary = theme === 'dark' ? '#f4f4f5' : '#0f172a';
   const textSecondary = theme === 'dark' ? '#a1a1aa' : '#71717a';
   const welcomeCardBg = theme === 'dark' ? '#18181b' : '#09090b';
-
-  const COURSE_MAP = {
-    'CS-401': 'Data Structures & Algorithms',
-    'CS-402': 'Database Management Systems',
-    'CS-403': 'Operating Systems',
-    'CS-404': 'Formal Language & Automata',
-    'HU-401': 'Values & Ethics in Profession'
-  };
-
-  const coursesMetrics = Object.entries(COURSE_MAP).map(([code, name]) => {
-    const courseLogs = logs.filter(l => l.type && l.type.includes(code));
-    const presentLogs = courseLogs.filter(l => l.status === 'Present').length;
-    
-    let baseTotal = 12;
-    let basePresent = 10;
-    if (code === 'CS-401') { baseTotal = 15; basePresent = 13; }
-    else if (code === 'CS-402') { baseTotal = 14; basePresent = 9; }
-    else if (code === 'CS-403') { baseTotal = 16; basePresent = 14; }
-    else if (code === 'CS-404') { baseTotal = 15; basePresent = 10; }
-    else if (code === 'HU-401') { baseTotal = 10; basePresent = 9; }
-
-    courseLogs.forEach(l => {
-      baseTotal += 1;
-      if (l.status === 'Present') {
-        basePresent += 1;
-      }
-    });
-
-    const rate = Math.round((basePresent / baseTotal) * 100);
-
-    return {
-      code,
-      name,
-      rate
-    };
-  });
-
 
   const localDate = new Date();
   const year = localDate.getFullYear();
@@ -258,19 +224,26 @@ export default function StudentDashboard() {
             >
               {complianceStatus}
             </Badge>
+            <Text fontSize="xs" color={textSecondary} mt={3} textAlign="center">
+              Based on completed sessions only. Live sessions stay pending until marked or closed.
+            </Text>
             
-            <SimpleGrid columns={3} spacing={6} w="100%" mt={8} textAlign="center" as={Flex} justify="space-around">
+            <SimpleGrid columns={{ base: 2, md: 4 }} spacing={6} w="100%" mt={8} textAlign="center">
               <Box>
                 <Text fontSize="2xs" color={textSecondary} fontWeight="700" letterSpacing="0.05em">PRESENT</Text>
-                <Text fontSize="lg" fontWeight="700" color="#10b981" mt={1}>{presentCount} Days</Text>
+                <Text fontSize="lg" fontWeight="700" color="#10b981" mt={1}>{presentCount} Sessions</Text>
               </Box>
               <Box>
                 <Text fontSize="2xs" color={textSecondary} fontWeight="700" letterSpacing="0.05em">ABSENT</Text>
-                <Text fontSize="lg" fontWeight="700" color="#ef4444" mt={1}>{absentCount} Days</Text>
+                <Text fontSize="lg" fontWeight="700" color="#ef4444" mt={1}>{absentCount} Sessions</Text>
               </Box>
               <Box>
-                <Text fontSize="2xs" color={textSecondary} fontWeight="700" letterSpacing="0.05em">TOTAL SESSIONS</Text>
-                <Text fontSize="lg" fontWeight="700" color={textPrimary} mt={1}>{totalClasses} Classes</Text>
+                <Text fontSize="2xs" color={textSecondary} fontWeight="700" letterSpacing="0.05em">PENDING</Text>
+                <Text fontSize="lg" fontWeight="700" color="#f59e0b" mt={1}>{pendingCount} Sessions</Text>
+              </Box>
+              <Box>
+                <Text fontSize="2xs" color={textSecondary} fontWeight="700" letterSpacing="0.05em">COMPLETED</Text>
+                <Text fontSize="lg" fontWeight="700" color={textPrimary} mt={1}>{totalClasses} Sessions</Text>
               </Box>
             </SimpleGrid>
           </Flex>
@@ -291,12 +264,12 @@ export default function StudentDashboard() {
                 <Text fontSize="sm">No attendance check-ins logged.</Text>
               </Flex>
             ) : (
-              logs.map((log, index) => (
-                <Flex key={index} align="center" justify="space-between" py={1}>
+              logs.map((log) => (
+                <Flex key={log.key} align="center" justify="space-between" py={1}>
                   <HStack spacing={4}>
                     <Icon
-                      as={log.status === 'Present' ? CheckCircle2 : XCircle}
-                      color={log.status === 'Present' ? '#10b981' : '#ef4444'}
+                      as={log.status === 'Present' ? CheckCircle2 : log.status === 'Pending' ? Clock : XCircle}
+                      color={log.status === 'Present' ? '#10b981' : log.status === 'Pending' ? '#f59e0b' : '#ef4444'}
                       w={5}
                       h={5}
                     />
@@ -305,12 +278,12 @@ export default function StudentDashboard() {
                         {new Date(log.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
                       </Text>
                       <Text fontSize="xs" color={textSecondary}>
-                        {log.status === 'Present' ? `Verified: ${log.type || 'Webcam Face ID'}` : 'Absent'}
+                        {log.className || log.type} · {log.teacherName || 'Faculty'}
                       </Text>
                     </Box>
                   </HStack>
                   <Box textAlign="right">
-                    <Badge colorScheme={log.status === 'Present' ? 'green' : 'red'} variant="subtle" px={2.5} py={0.5} borderRadius="md">
+                    <Badge colorScheme={log.status === 'Present' ? 'green' : log.status === 'Pending' ? 'orange' : 'red'} variant="subtle" px={2.5} py={0.5} borderRadius="md">
                       {log.status}
                     </Badge>
                     {log.status === 'Present' && (

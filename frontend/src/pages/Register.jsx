@@ -421,7 +421,7 @@ const Register = () => {
                   {profilePhoto ? (
                     <img src={profilePhoto} alt="Captured" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
+                    <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   )}
                   <canvas ref={canvasRef} style={{ display: 'none' }} />
                 </div>

@@ -132,7 +132,7 @@ export default function StudentWebcam() {
         if (!scanningRef.current) {
           captureAndScan();
         }
-      }, 1200);
+      }, 900);
     } else {
       if (scanIntervalRef.current) {
         clearInterval(scanIntervalRef.current);
@@ -166,7 +166,7 @@ export default function StudentWebcam() {
     tempCanvas.height = height;
     const tempCtx = tempCanvas.getContext('2d');
     tempCtx.drawImage(video, 0, 0, width, height);
-    const base64Frame = tempCanvas.toDataURL('image/jpeg', 0.85);
+    const base64Frame = tempCanvas.toDataURL('image/jpeg', 0.75);
 
     try {
       const classCode = selectedClassRef.current;

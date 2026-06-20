@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Table, Tag, Card, Select, Segmented, Empty } from 'antd';
-import { CalendarOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { CalendarOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useOutletContext } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader';
 
@@ -94,24 +94,16 @@ export default function StudentLogs() {
       dataIndex: 'status', 
       key: 'status',
       render: (s) => (
-        <Tag color={s === 'Present' ? 'success' : 'error'} style={{ borderRadius: 6, padding: '2px 8px' }}>
-          {s === 'Present' ? <CheckCircleOutlined style={{ marginRight: 4 }} /> : <CloseCircleOutlined style={{ marginRight: 4 }} />}
+        <Tag color={s === 'Present' ? 'success' : s === 'Pending' ? 'warning' : 'error'} style={{ borderRadius: 6, padding: '2px 8px' }}>
+          {s === 'Present' ? <CheckCircleOutlined style={{ marginRight: 4 }} /> : s === 'Pending' ? <ClockCircleOutlined style={{ marginRight: 4 }} /> : <CloseCircleOutlined style={{ marginRight: 4 }} />}
           {s}
         </Tag>
       ),
     },
     { 
-      title: 'Class / Method', 
-      dataIndex: 'type', 
-      key: 'type', 
-      render: (text) => {
-        const isClass = text.includes('CS-') || text.includes('HU-');
-        return (
-          <Tag color={isClass ? "processing" : "default"} style={{ fontSize: 12, borderRadius: 6 }}>
-            {text}
-          </Tag>
-        );
-      } 
+      title: 'Class / Faculty',
+      key: 'type',
+      render: (_, record) => <div><div style={{ fontWeight: 600 }}>{record.className || record.type}</div><div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{record.classCode} · {record.teacherName}</div></div>
     },
   ];
 

@@ -69,6 +69,12 @@ export const authAPI = {
       method: 'POST',
       body: JSON.stringify(payload)
     });
+  },
+  forgotPassword: async (email) => {
+    return request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
+  },
+  resetPassword: async (token, password) => {
+    return request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) });
   }
 };
 
@@ -100,6 +106,12 @@ export const studentAPI = {
   },
   uploadFaceImages: async (id, base64Images) => {
     return request(`/students/${id}/face-images`, {
+      method: 'POST',
+      body: JSON.stringify({ images: base64Images })
+    });
+  },
+  uploadOwnFaceImages: async (base64Images) => {
+    return request('/student/face-images', {
       method: 'POST',
       body: JSON.stringify({ images: base64Images })
     });
@@ -181,6 +193,9 @@ export const reportsAPI = {
   },
   getSummary: async () => {
     return request('/reports/summary');
+  },
+  getDepartments: async () => {
+    return request('/reports/departments');
   },
   getExportUrl: (params = {}) => {
     const query = new URLSearchParams(params).toString();

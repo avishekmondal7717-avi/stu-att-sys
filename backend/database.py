@@ -217,6 +217,36 @@ def init_db():
         CREATE INDEX IF NOT EXISTS attendance_sessions_teacher_date_idx
         ON attendance_sessions(teacher_email, session_date DESC)
     """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS attendance_sessions_department_date_idx ON attendance_sessions(department, session_date DESC);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS attendance_roster_session_roll_idx ON attendance_session_roster(sessionid, rollnumber);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS attendance_session_status_idx ON attendance(sessionid, rollnumber, status);")
+    cursor.execute("""
+        WITH ranked_live_sessions AS (
+            SELECT id,
+                   ROW_NUMBER() OVER (PARTITION BY teacher_email ORDER BY id DESC) AS position
+            FROM attendance_sessions
+            WHERE isactive = TRUE
+        )
+        UPDATE attendance_sessions session
+        SET isactive = FALSE, ended_at = COALESCE(ended_at, CURRENT_TIMESTAMP)
+        FROM ranked_live_sessions ranked
+        WHERE session.id = ranked.id AND ranked.position > 1
+    """)
+    cursor.execute("""
+        WITH ranked_live_cohorts AS (
+            SELECT id,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY LOWER(department), semester
+                       ORDER BY id DESC
+                   ) AS position
+            FROM attendance_sessions
+            WHERE isactive = TRUE
+        )
+        UPDATE attendance_sessions session
+        SET isactive = FALSE, ended_at = COALESCE(ended_at, CURRENT_TIMESTAMP)
+        FROM ranked_live_cohorts ranked
+        WHERE session.id = ranked.id AND ranked.position > 1
+    """)
     cursor.execute("""
         UPDATE active_sessions active
         SET isactive = FALSE
@@ -249,6 +279,17 @@ def init_db():
         status TEXT NOT NULL
     )
     """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        user_email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        used_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS password_reset_email_idx ON password_reset_tokens(user_email, created_at DESC);")
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS attendance_verification_audit (
         id SERIAL PRIMARY KEY,

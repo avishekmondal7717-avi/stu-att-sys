@@ -33,6 +33,9 @@ import base64
 import threading
 import time
 import math
+import hashlib
+import smtplib
+from email.message import EmailMessage
 from pathlib import Path
 from fastapi.concurrency import run_in_threadpool
 from datetime import timezone, timedelta
@@ -66,6 +69,7 @@ recognizer = cv2.FaceRecognizerSF_create(
 
 # Biometric & Liveness settings
 FACE_MATCH_THRESHOLD = float(os.environ.get("FACE_MATCH_THRESHOLD", "0.40"))
+SELF_FACE_MATCH_THRESHOLD = float(os.environ.get("SELF_FACE_MATCH_THRESHOLD", "0.48"))
 LIVENESS_LAPLACIAN_THRESHOLD = float(os.environ.get("LIVENESS_LAPLACIAN_THRESHOLD", "12.0"))
 
 # Timezone settings (IST default)
@@ -77,7 +81,7 @@ opencv_lock = threading.Lock()
 liveness_lock = threading.Lock()
 liveness_challenges = {}
 LIVENESS_CHALLENGE_TTL_SECONDS = 30
-LIVENESS_YAW_CHANGE = float(os.environ.get("LIVENESS_YAW_CHANGE", "0.18"))
+LIVENESS_YAW_CHANGE = float(os.environ.get("LIVENESS_YAW_CHANGE", "0.10"))
 
 def get_utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -175,7 +179,7 @@ def extract_face_embedding(frame: np.ndarray):
         return None, None, False, {}
 
 def verify_motion_liveness(key: str, yaw_ratio: float, frame_quality_ok: bool):
-    """Require opposite head movements across frames before accepting a scan."""
+    """Require one clear left-or-right head movement across frames."""
     now = time.monotonic()
     with liveness_lock:
         state = liveness_challenges.get(key)
@@ -183,14 +187,17 @@ def verify_motion_liveness(key: str, yaw_ratio: float, frame_quality_ok: bool):
             state = None
 
         if not frame_quality_ok:
-            liveness_challenges.pop(key, None)
-            return False, "spoof", "Use a clearly lit live face"
+            # Head movement naturally creates an occasional blurred frame.
+            # Preserve challenge progress instead of forcing the user to start
+            # over; the next clear frame must still satisfy the motion test.
+            if state:
+                state["updated"] = now
+                return False, "verifying", "Hold briefly, then turn left or right"
+            return False, "verifying", "Use a clearly lit face and hold briefly"
 
         if not state:
             liveness_challenges[key] = {
                 "baseline": yaw_ratio,
-                "stage": "first_turn",
-                "direction": None,
                 "updated": now,
             }
             return False, "verifying", "Turn your head slightly left or right"
@@ -199,20 +206,8 @@ def verify_motion_liveness(key: str, yaw_ratio: float, frame_quality_ok: bool):
         baseline = state["baseline"]
         relative_change = (yaw_ratio - baseline) / max(abs(baseline), 0.01)
 
-        if state["stage"] == "first_turn":
-            if abs(relative_change) < LIVENESS_YAW_CHANGE:
-                return False, "verifying", "Turn your head slightly left or right"
-            state["direction"] = 1 if relative_change > 0 else -1
-            state["stage"] = "opposite_turn"
-            return False, "verifying", "Now turn your head the other way"
-
-        opposite_reached = (
-            relative_change < -LIVENESS_YAW_CHANGE
-            if state["direction"] > 0
-            else relative_change > LIVENESS_YAW_CHANGE
-        )
-        if not opposite_reached:
-            return False, "verifying", "Now turn your head the other way"
+        if abs(relative_change) < LIVENESS_YAW_CHANGE:
+            return False, "verifying", "Turn your head slightly left or right"
 
         liveness_challenges.pop(key, None)
         return True, "live", "Liveness verified"
@@ -431,6 +426,13 @@ class LoginRequest(BaseModel):
     password: str
     role: Optional[str] = None
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
 class StudentRegisterRequest(BaseModel):
     rollNumber: str
     fullName: str
@@ -644,6 +646,7 @@ async def login(payload: LoginRequest):
             if student_row:
                 student_dict = row_to_dict(student_row)
                 profile_data = {
+                    "id": student_dict.get("id"),
                     "rollNumber": student_dict.get("rollNumber"),
                     "contact": student_dict.get("contact"),
                     "department": student_dict.get("department"),
@@ -679,6 +682,78 @@ async def login(payload: LoginRequest):
             }
         }
 
+
+def send_password_reset_email(recipient: str, reset_url: str):
+    host = os.environ.get("SMTP_HOST")
+    if not host:
+        print(f"[PasswordReset] Development reset link for {recipient}: {reset_url}")
+        return False
+    message = EmailMessage()
+    message["Subject"] = "Smart Attendance password reset"
+    message["From"] = os.environ.get("SMTP_FROM", os.environ.get("SMTP_USERNAME", "noreply@example.com"))
+    message["To"] = recipient
+    message.set_content(f"Reset your password within 15 minutes:\n\n{reset_url}\n\nIgnore this message if you did not request it.")
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    with smtplib.SMTP(host, port, timeout=10) as smtp:
+        smtp.starttls()
+        username = os.environ.get("SMTP_USERNAME")
+        password = os.environ.get("SMTP_PASSWORD")
+        if username and password:
+            smtp.login(username, password)
+        smtp.send_message(message)
+    return True
+
+
+@app.post("/api/auth/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest):
+    neutral = {"message": "If the account exists, password reset instructions have been generated."}
+    with db_session() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT email FROM users WHERE LOWER(email) = LOWER(%s)", (payload.email.strip(),))
+        user = cursor.fetchone()
+        if not user:
+            return neutral
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        cursor.execute("UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE user_email = %s AND used_at IS NULL", (user["email"],))
+        cursor.execute("""
+            INSERT INTO password_reset_tokens (user_email, token_hash, expires_at)
+            VALUES (%s, %s, CURRENT_TIMESTAMP + INTERVAL '15 minutes')
+        """, (user["email"], token_hash))
+        conn.commit()
+    reset_url = f"{os.environ.get('FRONTEND_URL', 'http://localhost:5173')}/reset-password?token={raw_token}"
+    try:
+        sent = await run_in_threadpool(send_password_reset_email, user["email"], reset_url)
+    except Exception as exc:
+        print(f"[PasswordReset] Email delivery failed: {exc}; reset link: {reset_url}")
+        sent = False
+    response = {**neutral, "delivery": "email" if sent else "development"}
+    if os.environ.get("RESET_DEBUG", "1") == "1":
+        response["debugResetToken"] = raw_token
+    return response
+
+
+@app.post("/api/auth/reset-password")
+async def reset_password(payload: ResetPasswordRequest):
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long.")
+    token_hash = hashlib.sha256(payload.token.encode()).hexdigest()
+    with db_session() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, user_email FROM password_reset_tokens
+            WHERE token_hash = %s AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+            FOR UPDATE
+        """, (token_hash,))
+        reset = cursor.fetchone()
+        if not reset:
+            raise HTTPException(status_code=400, detail="This reset link is invalid or has expired.")
+        cursor.execute("UPDATE users SET password = %s WHERE email = %s", (hash_password(payload.password), reset["user_email"]))
+        cursor.execute("UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = %s", (reset["id"],))
+        conn.commit()
+    log_action("Password reset completed", reset["user_email"], "Success")
+    return {"success": True}
+
 @app.get("/api/admin/audit-logs", dependencies=[Depends(require_role(["admin"]))])
 async def get_audit_logs():
     with db_session() as conn:
@@ -709,7 +784,7 @@ async def get_audit_logs():
     return {"logs": logs}
 
 # ─── Dashboard Stats API ──────────────────────────────────────
-@app.get("/api/dashboard/stats", dependencies=[Depends(require_role(["admin"]))])
+@app.get("/api/dashboard/stats", dependencies=[Depends(require_role(["admin", "teacher"]))])
 async def get_dashboard_stats():
     with db_session() as conn:
         cursor = conn.cursor()
@@ -1063,21 +1138,51 @@ async def enroll_student_faces(
         if current_user.get("role") == "student" and student["rollnumber"] != current_user.get("referenceId"):
             raise HTTPException(status_code=403, detail="You can only enroll your own face")
 
-        # Extract the best embedding from the provided images
+        # Average several clear samples for a more stable template across
+        # small pose and lighting changes.
+        embeddings = []
         for b64_img in request.images:
             frame = decode_base64_image(b64_img)
             if frame is None:
                 continue
             embedding, _, _, _ = await run_in_threadpool(extract_face_embedding, frame)
             if embedding:
-                cursor.execute(
-                    "UPDATE students SET embedding = %s::vector WHERE id = %s",
-                    (str(embedding), student_id)
-                )
-                conn.commit()
-                return {"success": True, "samples_enrolled": 1}
+                embeddings.append(np.asarray(embedding, dtype=np.float32))
+
+        if embeddings:
+            averaged = np.mean(embeddings, axis=0)
+            norm = np.linalg.norm(averaged)
+            if norm > 0:
+                averaged = averaged / norm
+            cursor.execute(
+                "UPDATE students SET embedding = %s::vector, status = 'Active' WHERE id = %s",
+                (str(averaged.tolist()), student_id)
+            )
+            cursor.execute("""
+                UPDATE users SET status = 'Active'
+                WHERE role = 'student' AND referenceid = %s
+            """, (student["rollnumber"],))
+            conn.commit()
+            return {"success": True, "samples_enrolled": len(embeddings)}
 
     raise HTTPException(status_code=400, detail="Could not detect any faces. Ensure proper lighting and a clear view.")
+
+
+@app.post("/api/student/face-images", dependencies=[Depends(require_role(["student"]))])
+async def enroll_current_student_faces(
+    request: FaceEnrollRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    with db_session() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id FROM students WHERE rollnumber = %s",
+            (current_user.get("referenceId"),),
+        )
+        student = cursor.fetchone()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+    return await enroll_student_faces(student["id"], request, current_user)
 
 # ─── Attendance Records ───────────────────────────────────────
 @app.get("/api/attendance/session-history", dependencies=[Depends(require_role(["admin", "teacher"]))])
@@ -1218,39 +1323,70 @@ async def get_student_attendance(current_user: dict = Depends(get_current_user))
     with db_session() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, rollnumber, studentname, department, date, timein, timeout, status, markedby
-            FROM attendance
-            WHERE rollnumber = %s
-            ORDER BY date DESC
+            SELECT s.id AS sessionid, s.classcode, s.classname, s.teacher_name,
+                   s.session_date, s.started_at, s.ended_at, s.isactive,
+                   a.id AS attendanceid, a.timein, a.timeout, a.markedby,
+                   a.verification_method, a.face_confidence, a.distance_meters,
+                   CASE
+                       WHEN a.status = 'Present' THEN 'Present'
+                       WHEN s.isactive = TRUE THEN 'Pending'
+                       ELSE 'Absent'
+                   END AS computed_status
+            FROM attendance_session_roster roster
+            JOIN attendance_sessions s ON s.id = roster.sessionid
+            LEFT JOIN attendance a
+              ON a.sessionid = s.id AND a.rollnumber = roster.rollnumber
+            WHERE roster.rollnumber = %s
+            ORDER BY s.started_at DESC, s.id DESC
         """, (current_user["referenceId"],))
         rows = cursor.fetchall()
-    
+
     logs = []
+    present_count = 0
+    absent_count = 0
+    pending_count = 0
     for r in rows:
-        d = row_to_dict(r)
-        
-        # Local timezone formatting for presentation
-        time_in_local = format_utc_to_local_time(d["timeIn"])
-        time_out_local = format_utc_to_local_time(d["timeOut"])
-        # If timeIn is a UTC timestamp, extract local date, else fall back to stored date column
-        date_local = format_utc_to_local_date(d["timeIn"]) if d["timeIn"] not in ["-", "Pending"] else d["date"]
-        
+        status = r["computed_status"]
+        if status == "Present": present_count += 1
+        elif status == "Absent": absent_count += 1
+        else: pending_count += 1
         logs.append({
-            "key": str(d["id"]),
-            "id": d["id"],
-            "date": date_local,
-            "timeIn": time_in_local,
-            "timeOut": time_out_local,
-            "status": d["status"],
-            "type": d["markedBy"]
+            "key": f"session-{r['sessionid']}",
+            "id": r["attendanceid"],
+            "sessionId": r["sessionid"],
+            "classCode": r["classcode"],
+            "className": r["classname"],
+            "teacherName": r["teacher_name"],
+            "date": r["session_date"],
+            "timeIn": format_utc_to_local_time(r["timein"]),
+            "timeOut": format_utc_to_local_time(r["timeout"]),
+            "status": status,
+            "isActive": r["isactive"],
+            "type": f"{r['classname']} ({r['classcode']})",
+            "markedBy": r["markedby"] or "-",
+            "verificationMethod": r["verification_method"],
+            "faceConfidence": r["face_confidence"],
+            "distanceMeters": r["distance_meters"],
         })
-    return {"data": logs}
+    completed = present_count + absent_count
+    return {
+        "data": logs,
+        "summary": {
+            "present": present_count,
+            "absent": absent_count,
+            "pending": pending_count,
+            "completed": completed,
+            "attendanceRate": round((present_count / completed * 100), 1) if completed else 0.0,
+        },
+    }
 
 # ─── Reports and Exports ─────────────────────────────────────
 @app.get("/api/reports/stats", dependencies=[Depends(require_role(["admin", "teacher"]))])
 async def get_reports_stats(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    department: Optional[str] = None,
+    group_by: Optional[str] = "day",
     current_user: dict = Depends(get_current_user),
 ):
     if not start_date:
@@ -1263,8 +1399,16 @@ async def get_reports_stats(
         session_filters = ["s.session_date BETWEEN %s AND %s"]
         session_params = [start_date, end_date]
         if current_user.get("role") == "teacher":
-            session_filters.append("s.teacher_email = %s")
-            session_params.append(current_user.get("email"))
+            cursor.execute("SELECT department FROM teachers WHERE email = %s", (current_user.get("email"),))
+            teacher = cursor.fetchone()
+            teacher_department = teacher["department"] if teacher else ""
+            if department and department.lower() != teacher_department.lower():
+                raise HTTPException(status_code=403, detail="Teachers can only view their own department analytics.")
+            session_filters.append("LOWER(s.department) = LOWER(%s)")
+            session_params.append(teacher_department)
+        elif department:
+            session_filters.append("LOWER(s.department) = LOWER(%s)")
+            session_params.append(department)
         where_sql = " AND ".join(session_filters)
 
         cursor.execute(f"""
@@ -1312,9 +1456,10 @@ async def get_reports_stats(
                 "percentage": round((present / roster_entries * 100), 1) if roster_entries else 0.0,
             })
 
+        grouping = {"day": "s.session_date", "month": "SUBSTRING(s.session_date, 1, 7)", "year": "SUBSTRING(s.session_date, 1, 4)"}.get(group_by or "day", "s.session_date")
         cursor.execute(f"""
             SELECT
-                s.session_date AS date,
+                {grouping} AS date,
                 COUNT(r.rollnumber) AS total,
                 COUNT(a.rollnumber) FILTER (WHERE a.status = 'Present') AS present
             FROM attendance_sessions s
@@ -1322,8 +1467,8 @@ async def get_reports_stats(
             LEFT JOIN attendance a
               ON a.sessionid = s.id AND a.rollnumber = r.rollnumber
             WHERE {where_sql}
-            GROUP BY s.session_date
-            ORDER BY s.session_date
+            GROUP BY {grouping}
+            ORDER BY {grouping}
         """, tuple(session_params))
         daily_rows = cursor.fetchall()
         
@@ -1331,7 +1476,7 @@ async def get_reports_stats(
         for r in daily_rows:
             pct = round((r["present"] / r["total"] * 100), 1) if r["total"] else 0.0
             trend.append({
-                "date": datetime.strptime(r["date"], "%Y-%m-%d").strftime("%d %b") if r["date"] else "-",
+                "date": (datetime.strptime(r["date"], "%Y-%m-%d").strftime("%d %b") if r["date"] and len(r["date"]) == 10 else datetime.strptime(r["date"], "%Y-%m").strftime("%b %Y") if r["date"] and len(r["date"]) == 7 else r["date"] or "-"),
                 "value": pct
             })
             
@@ -1341,11 +1486,23 @@ async def get_reports_stats(
         "presentCount": total_present,
         "absentCount": total_absent,
         "departmentStats": dept_stats,
-        "attendanceOverview": trend
+        "attendanceOverview": trend,
+        "period": {"startDate": start_date, "endDate": end_date, "groupBy": group_by},
     }
 
+@app.get("/api/reports/departments", dependencies=[Depends(require_role(["admin", "teacher"]))])
+async def get_report_departments(current_user: dict = Depends(get_current_user)):
+    with db_session() as conn:
+        cursor = conn.cursor()
+        if current_user.get("role") == "teacher":
+            cursor.execute("SELECT department FROM teachers WHERE email = %s", (current_user.get("email"),))
+        else:
+            cursor.execute("SELECT DISTINCT department FROM (SELECT department FROM students WHERE department IS NOT NULL UNION SELECT department FROM teachers WHERE department IS NOT NULL) departments ORDER BY department")
+        departments = [row["department"] for row in cursor.fetchall() if row["department"]]
+    return {"departments": departments, "locked": current_user.get("role") == "teacher"}
+
 @app.get("/api/reports/export", dependencies=[Depends(require_role(["admin", "teacher"]))])
-async def export_attendance_report(
+def export_attendance_report(
     department: Optional[str] = None,
     semester: Optional[str] = None,
     classCode: Optional[str] = None,
@@ -1667,6 +1824,37 @@ async def toggle_active_session(payload: ToggleSessionRequest, current_user: dic
         if not class_row:
             raise HTTPException(status_code=404, detail="Attendance session not found")
 
+        # A teacher can run only one live attendance window at a time. Close
+        # any older window before activating the newly selected class.
+        if payload.active:
+            cursor.execute("""
+                UPDATE attendance_sessions
+                SET isactive = FALSE, ended_at = CURRENT_TIMESTAMP
+                WHERE isactive = TRUE
+                  AND classcode <> %s
+                  AND (
+                      teacher_email = %s
+                      OR (LOWER(department) = LOWER(%s) AND semester = %s)
+                  )
+                RETURNING classcode
+            """, (
+                payload.classCode,
+                current_user.get("email"),
+                teacher_dept,
+                session_semester,
+            ))
+            closed_classcodes = {row["classcode"] for row in cursor.fetchall()}
+            for closed_classcode in closed_classcodes:
+                cursor.execute("""
+                    UPDATE active_sessions
+                    SET isactive = FALSE
+                    WHERE classcode = %s
+                      AND NOT EXISTS (
+                          SELECT 1 FROM attendance_sessions
+                          WHERE classcode = %s AND isactive = TRUE
+                      )
+                """, (closed_classcode, closed_classcode))
+
         cursor.execute("""
             UPDATE active_sessions
             SET isactive = %s
@@ -1822,6 +2010,15 @@ async def scan_attendance(request: ScanRequest, current_user: Optional[dict] = D
                 session_context["department"],
                 str(session_context["semester"]),
             ])
+        # Self-attendance already has an authenticated identity. Compare only
+        # against that student's enrolled template instead of allowing another
+        # roster member to become the nearest candidate on a noisy frame.
+        if current_user and current_user.get("role") == "student":
+            match_filters.append("rollnumber = %s")
+            match_params.append(current_user.get("referenceId"))
+            if session_context:
+                match_filters.append("EXISTS (SELECT 1 FROM attendance_session_roster eligible WHERE eligible.sessionid = %s AND eligible.studentid = students.id)")
+                match_params.append(session_context["id"])
         cursor.execute(f"""
             SELECT rollnumber, fullname, department, semester,
                    (embedding <=> %s::vector) AS distance
@@ -1843,7 +2040,12 @@ async def scan_attendance(request: ScanRequest, current_user: Optional[dict] = D
         }
 
         # Configurable Biometrics: Move threshold to env variable
-        if match and match["distance"] < FACE_MATCH_THRESHOLD:
+        match_threshold = (
+            SELF_FACE_MATCH_THRESHOLD
+            if current_user and current_user.get("role") == "student"
+            else FACE_MATCH_THRESHOLD
+        )
+        if match and match["distance"] < match_threshold:
             roll = match["rollnumber"]
             friendly_name = match["fullname"]
             dept = match["department"]

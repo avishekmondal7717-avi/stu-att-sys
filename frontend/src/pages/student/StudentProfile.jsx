@@ -1,11 +1,65 @@
-import { Card, Avatar, Row, Col } from 'antd';
+import { useRef, useState } from 'react';
+import { Card, Avatar, Row, Col, Button, Modal, message } from 'antd';
+import { CameraOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/PageHeader';
 import { useOutletContext } from 'react-router-dom';
+import { studentAPI } from '../../services/api';
 
 export default function StudentProfile() {
   const { theme } = useOutletContext() || {};
   const currentUserStr = localStorage.getItem("currentUser");
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+  const [faceModalOpen, setFaceModalOpen] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const stopEnrollmentCamera = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  };
+
+  const openFaceEnrollment = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+      streamRef.current = stream;
+      setFaceModalOpen(true);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play();
+        }
+      }, 100);
+    } catch {
+      message.error('Camera access is required to re-enroll Face ID.');
+    }
+  };
+
+  const captureSamples = async () => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) return message.warning('Camera is not ready yet.');
+    setEnrolling(true);
+    try {
+      const samples = [];
+      for (let index = 0; index < 3; index += 1) {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        samples.push(canvas.toDataURL('image/jpeg', 0.9));
+        await new Promise((resolve) => setTimeout(resolve, 450));
+      }
+      const result = await studentAPI.uploadOwnFaceImages(samples);
+      message.success(`Face ID updated from ${result.samples_enrolled} clear sample(s).`);
+      stopEnrollmentCamera();
+      setFaceModalOpen(false);
+    } catch (error) {
+      message.error(error.message || 'Face ID enrollment failed.');
+    } finally {
+      setEnrolling(false);
+    }
+  };
 
   const currentStudent = currentUser ? {
     fullName: currentUser.fullName,
@@ -212,6 +266,9 @@ export default function StudentProfile() {
               <p style={{ margin: 0, color: 'rgba(255, 255, 255, 0.9)', fontSize: 14, fontWeight: 600 }}>
                 Student ID: {currentStudent.rollNumber}
               </p>
+              <Button icon={<CameraOutlined />} onClick={openFaceEnrollment} style={{ marginTop: 14 }}>
+                Re-enroll Face ID
+              </Button>
             </Col>
           </Row>
         </div>
@@ -293,6 +350,21 @@ export default function StudentProfile() {
           </Row>
         </div>
       </Card>
+      <Modal
+        title="Re-enroll Face ID"
+        open={faceModalOpen}
+        onCancel={() => { stopEnrollmentCamera(); setFaceModalOpen(false); }}
+        footer={null}
+        destroyOnClose
+      >
+        <p style={{ marginBottom: 12, color: 'var(--text-secondary)' }}>
+          Use normal front lighting, remove strong glare, look straight at the camera, and keep your face still.
+        </p>
+        <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', borderRadius: 12, background: '#09090b' }} />
+        <Button type="primary" block size="large" loading={enrolling} onClick={captureSamples} style={{ marginTop: 16 }}>
+          Capture 3 Samples & Update Face ID
+        </Button>
+      </Modal>
     </div>
   );
 }
