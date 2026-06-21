@@ -298,7 +298,9 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
             raise HTTPException(status_code=401, detail="User account not found")
             
         user_dict = row_to_dict(user)
-        if user_dict["status"] == "Pending Verification":
+        # Students with a flushed biometric template must remain authenticated
+        # so they can open their profile and enroll a replacement Face ID.
+        if user_dict["status"] == "Pending Verification" and user_dict["role"] != "student":
             raise HTTPException(status_code=403, detail="Email verification is pending")
         if user_dict["status"] == "Suspended":
             raise HTTPException(status_code=403, detail="Account is suspended")
@@ -308,6 +310,8 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         raise HTTPException(status_code=401, detail="Token has expired", headers={"WWW-Authenticate": "Bearer"})
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token signature", headers={"WWW-Authenticate": "Bearer"})
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Authentication error: {str(e)}", headers={"WWW-Authenticate": "Bearer"})
 
