@@ -272,37 +272,75 @@ const Register = () => {
         )}
       </button>
       {/* Left Panel */}
-      <div className="register-left">
-        <div className="register-brand">
-          <div className="register-brand-icon">
-            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="brand-gradient-reg" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#06b6d4" />
-                </linearGradient>
-              </defs>
-              <rect width="40" height="40" rx="8" fill="rgba(255,255,255,0.05)" />
-              <path d="M20 8C15.58 8 12 11.58 12 16C12 19.07 13.7 21.74 16.2 23.16C11.58 24.56 8 28.76 8 34H12C12 29.58 15.58 26 20 26C24.42 26 28 29.58 28 34H32C32 28.76 28.42 24.56 23.8 23.16C26.3 21.74 28 19.07 28 16C28 11.58 24.42 8 20 8ZM20 22C17.79 22 16 20.21 16 18C16 15.79 17.79 14 20 14C22.21 14 24 15.79 24 18C24 20.21 22.21 22 20 22Z" fill="url(#brand-gradient-reg)"/>
-            </svg>
-          </div>
-          <div>
-            <h1 className="register-brand-title">Smart <span className="register-brand-accent">Attendance</span></h1>
-            <p className="register-brand-sub">PostgreSQL Vector Face Recognition</p>
-          </div>
-        </div>
-        <div className="register-features">
-          <div className="register-feature-item">
-            <div className="register-feature-icon">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 11.75A1.25 1.25 0 1 0 9 14.25 1.25 1.25 0 0 0 9 11.75ZM15 11.75A1.25 1.25 0 1 0 15 14.25 1.25 1.25 0 0 0 15 11.75ZM12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2ZM12 20a8 8 0 0 1-8-8 8 8 0 0 1 8-8 8 8 0 0 1 8 8 8 8 0 0 1-8 8Z"/></svg>
-            </div>
-            <div>
-              <h3>AI Vector Embeddings</h3>
-              <p>Your face is securely encrypted into an irreversible mathematical vector.</p>
-            </div>
-          </div>
-        </div>
+     {/* Left Panel */}
+<div className="register-left">
+  <div className="register-brand">
+    <div className="register-brand-icon">
+      <svg viewBox="0 0 40 40" fill="none">
+        <defs>
+          <linearGradient id="brand-gradient-reg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="25%" stopColor="#6366f1" />
+            <stop offset="100%" stopColor="#06b6d4" />
+          </linearGradient>
+        </defs>
+        <rect width="40" height="40" rx="8" fill="rgba(255,255,255,0.05)" />
+        <path
+          d="M20 8C15.58 8 12 11.58 12 16C12 19.07 13.7 21.74 16.2 23.16C11.58 24.56 8 28.76 8 34H12C12 29.58 15.58 26 20 26C24.42 26 28 29.58 28 34H32C32 28.76 28.42 24.56 23.8 23.16C26.3 21.74 28 19.07 28 16C28 11.58 24.42 8 20 8Z"
+          fill="url(#brand-gradient-reg)"
+        />
+      </svg>
+    </div>
+
+    <div>
+      <h1 className="register-brand-title">
+        Smart <span className="register-brand-accent">Attendance</span> Sytem
+      </h1>
+      <p className="register-brand-sub">
+        A Face Recognition based Attendance System
+      </p>
+    </div>
+  </div>
+
+  {/* FEATURES */}
+  <div className="register-features">
+
+    <div className="register-feature-item">
+      <div className="register-feature-icon">👤</div>
+      <div>
+        <h3>Face Recognition</h3>
+        <p>Secure and accurate face recognition technology</p>
       </div>
+    </div>
+
+    <div className="register-feature-item">
+      <div className="register-feature-icon">📡</div>
+      <div>
+        <h3>Real-time Tracking</h3>
+        <p>Monitor attendance in real-time with instant updates</p>
+      </div>
+    </div>
+
+    <div className="register-feature-item">
+      <div className="register-feature-icon">📊</div>
+      <div>
+        <h3>Detailed Reports</h3>
+        <p>Generate comprehensive attendance reports and analytics</p>
+      </div>
+    </div>
+
+  </div>
+
+  {/* BOTTOM FEATURE */}
+  <div className="register-ai-box">
+    <div className="register-feature-item">
+      <div className="register-feature-icon">🧠</div>
+      <div>
+        <h3>AI Vector Embeddings</h3>
+        <p>Your face is converted into secure mathematical vectors</p>
+      </div>
+    </div>
+  </div>
+</div>
 
       {/* Right Panel */}
       <div className="register-right">

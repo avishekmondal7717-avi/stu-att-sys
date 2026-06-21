@@ -150,73 +150,128 @@ export default function Login() {
   };
 
   return (
-    <div className="login-wrapper">
-      <button 
-        onClick={toggleTheme} 
-        style={{
-          position: 'absolute',
-          top: '24px',
-          right: '24px',
-          zIndex: 100,
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '50%',
-          width: '40px',
-          height: '40px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          color: theme === 'dark' ? '#fbbf24' : '#9ca3af',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          backdropFilter: 'blur(8px)',
-          transition: 'all 0.2s ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-          e.currentTarget.style.transform = 'scale(1.05)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-          e.currentTarget.style.transform = 'scale(1)';
-        }}
-        title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-      >
-        {theme === 'dark' ? (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="5" fill="currentColor" />
-            <line x1="12" y1="1" x2="12" y2="3" />
-            <line x1="12" y1="21" x2="12" y2="23" />
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-            <line x1="1" y1="12" x2="3" y2="12" />
-            <line x1="21" y1="12" x2="23" y2="12" />
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-          </svg>
-        ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor" />
-          </svg>
-        )}
-      </button>
-      <div className="right-panel">
-        <div className="login-card">
-          <div className="card-logo">
-            <svg width="42" height="42" viewBox="0 0 24 24" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <defs>
-                <linearGradient id="brand-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#06b6d4" />
-                </linearGradient>
-              </defs>
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="url(#brand-gradient)" />
+    <div className="login-split-container">
+      {/* Left Panel */}
+      <div className="login-left-panel">
+        <div className="left-panel-content">
+          <div className="brand-header">
+            <div className="brand-logo-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <circle cx="12" cy="11" r="3" />
+                <path d="M16 18c-1.5-2-4-2-8 0" />
+              </svg>
+            </div>
+            <h1>Smart <span>Attendance</span> System</h1>
+          </div>
+          <p className="brand-subtitle">
+            A Face Recognition based Attendance Management System
+          </p>
+          
+          <div className="features-list">
+            <div className="feature-item">
+              <div className="feature-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                  <path d="M9 14v7" />
+                  <path d="M6 17.5h6" />
+                </svg>
+              </div>
+              <div className="feature-text">
+                <h3>Face Recognition</h3>
+                <p>Secure and accurate face recognition technology</p>
+              </div>
+            </div>
+            
+            <div className="feature-item">
+              <div className="feature-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10" />
+                  <line x1="12" y1="20" x2="12" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+              </div>
+              <div className="feature-text">
+                <h3>Real-time Tracking</h3>
+                <p>Monitor attendance in real-time with instant updates</p>
+              </div>
+            </div>
+            
+            <div className="feature-item">
+              <div className="feature-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+              </div>
+              <div className="feature-text">
+                <h3>Detailed Reports</h3>
+                <p>Generate comprehensive attendance reports and analytics</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="left-panel-footer">
+          <p>&copy; 2026 Smart Attendance System. All rights reserved.</p>
+        </div>
+        
+        {/* Decorative background shapes */}
+        <div className="bg-shape shape-1"></div>
+        <div className="bg-shape shape-2"></div>
+      </div>
+
+      {/* Right Panel */}
+      <div className="login-right-panel">
+        <button 
+          onClick={toggleTheme} 
+          className="theme-toggle-btn"
+          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+        >
+          {theme === 'dark' ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="5" fill="currentColor" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
             </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor" />
+            </svg>
+          )}
+        </button>
+
+        <div className="login-card">
+          <div className="card-logo-wrap">
+            <div className="card-logo">
+              {role === 'student' ? (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                  <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />
+                </svg>
+              ) : (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              )}
+            </div>
           </div>
 
-          <h2>Smart Attendance</h2>
+          <h2>Welcome Back</h2>
           <p className="subtitle">
-            Sign in to access your portal
+            Sign in as {role === 'student' ? 'Student' : 'Teacher'}
           </p>
 
           <div className="role-selector">
@@ -240,6 +295,10 @@ export default function Login() {
           <div className="field">
             <label>Email Address</label>
             <div className={`input-wrap ${emailError ? 'input-error' : ''}`}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--auth-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
               <input
                 type="email"
                 placeholder="Enter your email"
@@ -256,6 +315,10 @@ export default function Login() {
           <div className="field">
             <label>Password</label>
             <div className={`input-wrap ${passwordError ? 'input-error' : ''}`}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--auth-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
