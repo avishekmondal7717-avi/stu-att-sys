@@ -3,7 +3,7 @@
 // Connects React frontend components to FastAPI Python backend
 // ============================================================
 
-const BASE_URL = '/api';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Helper for HTTP requests
 const request = async (endpoint, options = {}) => {

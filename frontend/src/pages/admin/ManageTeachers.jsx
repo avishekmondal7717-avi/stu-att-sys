@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Table, Button, Input, Select, Tag, Avatar, Space, Popconfirm, message, Modal, Form, Row, Col } from 'antd';
-import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/PageHeader';
 import { DEPARTMENTS } from '../../data/dummyData';
 import { teacherAPI } from '../../services/api';
@@ -53,12 +53,6 @@ export default function ManageTeachers() {
     }
   };
 
-  const handleOpenAdd = () => {
-    setEditingTeacher(null);
-    form.resetFields();
-    setIsModalOpen(true);
-  };
-
   const handleOpenEdit = (teacher) => {
     setEditingTeacher(teacher);
     form.setFieldsValue(teacher);
@@ -78,18 +72,6 @@ export default function ManageTeachers() {
           // Edit existing record
           await teacherAPI.update(editingTeacher.id, { ...values, status: editingTeacher.status });
           message.success('Teacher record updated successfully');
-        } else {
-          // Add new record
-          const createdTeacher = await teacherAPI.create({ ...values, status: 'Active' });
-          Modal.success({
-            title: 'Teacher account created',
-            content: (
-              <div>
-                <p>Share this one-time temporary password securely with the teacher:</p>
-                <strong style={{ fontFamily: 'monospace', fontSize: 16 }}>{createdTeacher.temporaryPassword}</strong>
-              </div>
-            ),
-          });
         }
         setIsModalOpen(false);
         fetchTeachers();
@@ -150,9 +132,6 @@ export default function ManageTeachers() {
           <Select placeholder="All Departments" allowClear style={{ width: 200 }} value={filterDept || undefined} onChange={setFilterDept}>
             {DEPARTMENTS.map((d) => <Option key={d} value={d}>{d}</Option>)}
           </Select>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenAdd} style={{ marginLeft: 'auto', background: '#d97706', borderColor: '#d97706' }}>
-            Add Teacher
-          </Button>
         </div>
 
         <Table
@@ -194,7 +173,7 @@ export default function ManageTeachers() {
 
       {/* Add/Edit Modal */}
       <Modal
-        title={editingTeacher ? 'Edit Teacher Details' : 'Add New Teacher'}
+        title="Edit Teacher Details"
         open={isModalOpen}
         onOk={handleSave}
         onCancel={() => setIsModalOpen(false)}

@@ -892,6 +892,9 @@ async def get_student(student_id: int, current_user: dict = Depends(get_current_
 
 @app.post("/api/students", dependencies=[Depends(require_role(["admin"]))])
 async def create_student(student: StudentCreate):
+    raise HTTPException(status_code=403, detail="Students must create their own account through registration.")
+
+    # Retained below temporarily for database migration history; unreachable by design.
     with db_session() as conn:
         cursor = conn.cursor()
         try:
@@ -1039,6 +1042,9 @@ async def get_teacher(teacher_id: int):
 
 @app.post("/api/teachers", dependencies=[Depends(require_role(["admin"]))])
 async def create_teacher(teacher: TeacherCreate):
+    raise HTTPException(status_code=403, detail="Teachers must create their own account through registration.")
+
+    # Retained below temporarily for database migration history; unreachable by design.
     with db_session() as conn:
         cursor = conn.cursor()
         try:

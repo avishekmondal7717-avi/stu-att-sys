@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Table, Button, Input, Select, Tag, Avatar, Space, Popconfirm, message, Modal, Form, Row, Col } from 'antd';
-import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/PageHeader';
 import { DEPARTMENTS, COURSES, SEMESTERS } from '../../data/dummyData';
 import { studentAPI } from '../../services/api';
@@ -107,12 +107,6 @@ export default function ManageStudents() {
     }
   };
 
-  const handleOpenAdd = () => {
-    setEditingStudent(null);
-    form.resetFields();
-    setIsModalOpen(true);
-  };
-
   const handleOpenEdit = (student) => {
     setEditingStudent(student);
     form.setFieldsValue(student);
@@ -130,22 +124,6 @@ export default function ManageStudents() {
             semester: String(values.semester)
           });
           message.success('Student record updated successfully');
-        } else {
-          // Add new student record
-          const createdStudent = await studentAPI.create({
-            ...values, 
-            status: 'Active',
-            semester: String(values.semester)
-          });
-          Modal.success({
-            title: 'Student account created',
-            content: (
-              <div>
-                <p>Share this one-time temporary password securely with the student:</p>
-                <strong style={{ fontFamily: 'monospace', fontSize: 16 }}>{createdStudent.temporaryPassword}</strong>
-              </div>
-            ),
-          });
         }
         setIsModalOpen(false);
         fetchStudents();
@@ -219,9 +197,6 @@ export default function ManageStudents() {
           <Select placeholder="All Semesters" allowClear style={{ width: 150 }} value={filterSem || undefined} onChange={setFilterSem}>
             {SEMESTERS.map((s) => <Option key={s} value={s}>Semester {s}</Option>)}
           </Select>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenAdd} style={{ marginLeft: 'auto', background: '#d97706', borderColor: '#d97706' }}>
-            Add Student
-          </Button>
         </div>
 
         <Table
@@ -273,7 +248,7 @@ export default function ManageStudents() {
 
       {/* Add/Edit Modal */}
       <Modal
-        title={editingStudent ? 'Edit Student Details' : 'Add New Student'}
+        title="Edit Student Details"
         open={isModalOpen}
         onOk={handleSave}
         onCancel={() => setIsModalOpen(false)}
