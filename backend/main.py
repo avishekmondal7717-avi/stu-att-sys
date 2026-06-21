@@ -108,6 +108,18 @@ def format_utc_to_local_date(utc_iso_str: str) -> str:
         print(f"Error converting date {utc_iso_str}: {e}")
         return utc_iso_str
 
+def format_utc_datetime_to_local(value: datetime) -> str:
+    """Format PostgreSQL audit timestamps as local time.
+
+    The legacy audit column is TIMESTAMP (without timezone), so values returned
+    by PostgreSQL are interpreted as UTC before conversion.
+    """
+    if not value:
+        return ""
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(LOCAL_TZ).strftime("%Y-%m-%d %I:%M:%S %p")
+
 def get_utc_range_for_local_date(local_date_str: str) -> tuple[str, str]:
     local_start = datetime.strptime(local_date_str, "%Y-%m-%d").replace(tzinfo=LOCAL_TZ)
     local_end = local_start + timedelta(days=1) - timedelta(microseconds=1)
@@ -765,7 +777,7 @@ async def get_audit_logs():
     for r in rows:
         logs.append({
             "id": r["id"],
-            "timestamp": r["timestamp"].strftime("%Y-%m-%d %I:%M:%S %p") if r["timestamp"] else "",
+            "timestamp": format_utc_datetime_to_local(r["timestamp"]),
             "action": r["action"],
             "actor": r["actor"],
             "status": r["status"]
@@ -775,7 +787,7 @@ async def get_audit_logs():
         logs = [
             {
                 "id": 1,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %I:%M:%S %p"),
+                "timestamp": datetime.now(LOCAL_TZ).strftime("%Y-%m-%d %I:%M:%S %p"),
                 "action": "System Database Initialized",
                 "actor": "System",
                 "status": "Success"

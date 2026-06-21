@@ -470,3 +470,55 @@ optgroup {
   color: #f4f4f5 !important;
   border: 1px solid #27272a !important;
 }
+
+.analytics-print-heading {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  #analytics-print-root,
+  #analytics-print-root * {
+    visibility: visible !important;
+  }
+
+  #analytics-print-root {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    background: #fff !important;
+    color: #111827 !important;
+  }
+
+  .analytics-print-heading {
+    display: block;
+    margin-bottom: 16px;
+  }
+
+  .analytics-print-heading h1 {
+    margin: 0 0 4px;
+    font-size: 24px;
+  }
+
+  .analytics-print-heading p {
+    color: #4b5563;
+  }
+
+  .analytics-report-controls,
+  #analytics-print-root nav {
+    display: none !important;
+  }
+
+  #analytics-print-root .ant-card {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+}

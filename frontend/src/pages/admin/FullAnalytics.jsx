@@ -43,6 +43,13 @@ export default function FullAnalytics() {
     }
   ];
 
+  const generatePdf = () => {
+    const previousTitle = document.title;
+    document.title = `attendance-analytics-${new Date().toISOString().slice(0, 10)}`;
+    window.print();
+    document.title = previousTitle;
+  };
+
   if (loading) {
     return <div style={{ padding: 40, textAlign: 'center' }}><Spin size="large" /></div>;
   }
@@ -52,10 +59,14 @@ export default function FullAnalytics() {
   }
 
   return (
-    <div>
+    <div id="analytics-print-root">
+      <div className="analytics-print-heading">
+        <h1>Smart Attendance — Full Analytics Report</h1>
+        <p>Generated {new Date().toLocaleString()}</p>
+      </div>
       <PageHeader title="Full Analytics" subtitle="Access system-wide attendance reports and historical performance" breadcrumbs={[{ label: 'Full Analytics' }]} />
 
-      <div className="surface-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 16, marginBottom: 16, boxShadow: 'var(--shadow-sm)', display: 'flex', gap: 12, alignItems: 'center' }}>
+      <div className="surface-card analytics-report-controls" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 16, marginBottom: 16, boxShadow: 'var(--shadow-sm)', display: 'flex', gap: 12, alignItems: 'center' }}>
         <span>Filter Report Semester:</span>
         <Select defaultValue="All" style={{ width: 150 }} onChange={setSelectedSemester}>
           <Option value="All">All Semesters</Option>
@@ -63,7 +74,7 @@ export default function FullAnalytics() {
           <Option value="Even">Even Semesters</Option>
         </Select>
 
-        <Button icon={<FileText />} style={{ marginLeft: 'auto', background: '#d97706', color: '#fff', borderColor: '#d97706' }}>
+        <Button icon={<FileText />} onClick={generatePdf} style={{ marginLeft: 'auto', background: '#d97706', color: '#fff', borderColor: '#d97706' }}>
           Generate PDF Report
         </Button>
       </div>
