@@ -79,25 +79,16 @@ const Reports = () => {
     setExporting(format);
     try {
       const [start, end] = effectiveRange();
-      const token = localStorage.getItem("token");
-      const query = new URLSearchParams({
+      const exportParams = {
         department: filterDept,
         start_date: start.format('YYYY-MM-DD'),
         end_date: end.format('YYYY-MM-DD'),
         format: format
-      }).toString();
+      };
 
       message.loading({ content: `Generating ${format === 'xlsx' ? 'Excel' : 'CSV'} report...`, key: 'export' });
       
-      const response = await fetch(`/api/reports/export?${query}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) throw new Error("Export failed");
-      
-      const blob = await response.blob();
+      const blob = await reportsAPI.downloadExport(exportParams);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

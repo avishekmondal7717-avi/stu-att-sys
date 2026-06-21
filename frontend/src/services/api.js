@@ -5,6 +5,17 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
+const authorizedFetch = async (endpoint, options = {}) => {
+  const token = localStorage.getItem('token');
+  return fetch(`${BASE_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  });
+};
+
 // Helper for HTTP requests
 const request = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
@@ -199,9 +210,18 @@ export const reportsAPI = {
   },
   getExportUrl: (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    const token = localStorage.getItem("token");
-    return `/api/reports/export?token=${token}&${query}`;
-  }
+    return `${BASE_URL}/reports/export?${query}`;
+  },
+  downloadExport: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const response = await authorizedFetch(`/reports/export?${query}`);
+    if (!response.ok) {
+      let detail = `Export failed (${response.status})`;
+      try { detail = (await response.json()).detail || detail; } catch (_) {}
+      throw new Error(detail);
+    }
+    return response.blob();
+  },
 };
 
 // ── Dashboard API ─────────────────────────────────────────────

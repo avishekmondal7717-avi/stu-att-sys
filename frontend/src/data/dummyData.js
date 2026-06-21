@@ -9,6 +9,8 @@ export const DEPARTMENTS = [
   'Mechanical Engineering',
   'Civil Engineering',
   'Electrical Engineering',
+  'Automobile Engineering',
+  'Computer Science (AI & ML)',
 ];
 
 export const COURSES = ['B.Tech', 'M.Tech', 'BCA', 'MCA', 'B.Sc'];

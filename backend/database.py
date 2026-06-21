@@ -182,7 +182,7 @@ def init_db():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS attendance_session_roster (
         sessionid INTEGER NOT NULL REFERENCES attendance_sessions(id) ON DELETE CASCADE,
-        studentid INTEGER NOT NULL REFERENCES students(id) ON DELETE RESTRICT,
+        studentid INTEGER REFERENCES students(id) ON DELETE SET NULL,
         rollnumber TEXT NOT NULL,
         studentname TEXT NOT NULL,
         department TEXT NOT NULL,
@@ -191,6 +191,13 @@ def init_db():
     )
     """)
     cursor.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS sessionid INTEGER;")
+    cursor.execute("ALTER TABLE attendance_session_roster ALTER COLUMN studentid DROP NOT NULL;")
+    cursor.execute("ALTER TABLE attendance_session_roster DROP CONSTRAINT IF EXISTS attendance_session_roster_studentid_fkey;")
+    cursor.execute("""
+        ALTER TABLE attendance_session_roster
+        ADD CONSTRAINT attendance_session_roster_studentid_fkey
+        FOREIGN KEY (studentid) REFERENCES students(id) ON DELETE SET NULL
+    """)
     cursor.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS submitted_latitude DOUBLE PRECISION;")
     cursor.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS submitted_longitude DOUBLE PRECISION;")
     cursor.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS location_accuracy DOUBLE PRECISION;")

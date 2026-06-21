@@ -375,6 +375,10 @@ def department_prefix(department: Optional[str]) -> Optional[str]:
         return "CE"
     if normalized in {"electrical engineering", "electrical", "ee"}:
         return "EE"
+    if normalized in {"automobile engineering", "automobile", "ae", "aue"}:
+        return "AU"
+    if normalized in {"computer science (ai & ml)", "computer science ai & ml", "ai & ml", "aiml"}:
+        return "AIML"
     if normalized in {"humanities", "hu"}:
         return "HU"
 
@@ -417,6 +421,7 @@ class ScanRequest(BaseModel):
 
 class ToggleSessionRequest(BaseModel):
     classCode: str
+    className: Optional[str] = None
     active: bool
     latitude: Optional[float] = None
     longitude: Optional[float] = None
@@ -630,7 +635,7 @@ async def login(payload: LoginRequest):
         if not verify_password(payload.password, user_dict["password"]):
             raise HTTPException(status_code=401, detail="Invalid email or password")
             
-        if user_dict["status"] == "Pending Verification":
+        if user_dict["status"] == "Pending Verification" and user_dict["role"] != "student":
             raise HTTPException(status_code=400, detail="Email verification pending. Please verify your email first.")
             
         if user_dict["status"] == "Suspended":
@@ -945,6 +950,7 @@ async def create_student(student: StudentCreate):
 
 @app.put("/api/students/{student_id}", dependencies=[Depends(require_role(["admin"]))])
 async def update_student(student_id: int, student: StudentCreate, current_user: dict = Depends(get_current_user)):
+    audit_message = None
     with db_session() as conn:
         cursor = conn.cursor()
         
@@ -975,11 +981,7 @@ async def update_student(student_id: int, student: StudentCreate, current_user: 
                 student.email, student.fullName, student.rollNumber, 'Pending Verification', old_email
             ))
             
-            log_action(
-                f"Flushed biometric template for student {student.fullName} ({student.rollNumber})",
-                current_user["fullName"],
-                "Success"
-            )
+            audit_message = f"Flushed biometric template for student {student.fullName} ({student.rollNumber})"
         else:
             cursor.execute("""
                 UPDATE students
@@ -1000,13 +1002,11 @@ async def update_student(student_id: int, student: StudentCreate, current_user: 
             ))
             
             if old_status != student.status:
-                log_action(
-                    f"Toggled status for student {student.fullName} ({student.rollNumber}) to {student.status}",
-                    current_user["fullName"],
-                    "Success"
-                )
+                audit_message = f"Toggled status for student {student.fullName} ({student.rollNumber}) to {student.status}"
                 
         conn.commit()
+    if audit_message:
+        log_action(audit_message, current_user["fullName"], "Success")
     return {"success": True}
 
 
@@ -1020,6 +1020,7 @@ async def delete_student(student_id: int):
         student = cursor.fetchone()
         if student:
             email = student["email"]
+            cursor.execute("UPDATE attendance_session_roster SET studentid = NULL WHERE studentid = %s", (student_id,))
             cursor.execute("DELETE FROM students WHERE id = %s", (student_id,))
             cursor.execute("DELETE FROM users WHERE email = %s", (email,))
             conn.commit()
@@ -1149,7 +1150,7 @@ async def enroll_student_faces(
 ):
     with db_session() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, rollnumber FROM students WHERE id = %s", (student_id,))
+        cursor.execute("SELECT id, rollnumber, fullname, department, semester FROM students WHERE id = %s", (student_id,))
         student = cursor.fetchone()
         if not student:
             raise HTTPException(status_code=404, detail="Student not found")
@@ -1180,6 +1181,23 @@ async def enroll_student_faces(
                 UPDATE users SET status = 'Active'
                 WHERE role = 'student' AND referenceid = %s
             """, (student["rollnumber"],))
+            # If the student re-enrolls while a matching attendance window is
+            # open, include them in that immutable session roster immediately.
+            cursor.execute("""
+                INSERT INTO attendance_session_roster (
+                    sessionid, studentid, rollnumber, studentname, department, semester
+                )
+                SELECT id, %s, %s, %s, %s, %s
+                FROM attendance_sessions
+                WHERE isactive = TRUE
+                  AND LOWER(department) = LOWER(%s)
+                  AND semester = %s
+                ON CONFLICT (sessionid, rollnumber) DO UPDATE SET studentid = EXCLUDED.studentid
+            """, (
+                student["id"], student["rollnumber"], student["fullname"],
+                student["department"], str(student["semester"]),
+                student["department"], str(student["semester"]),
+            ))
             conn.commit()
             return {"success": True, "samples_enrolled": len(embeddings)}
 
@@ -1706,6 +1724,8 @@ async def get_active_sessions(current_user: Optional[dict] = Depends(get_current
         'Mechanical Engineering': 'ME',
         'Civil Engineering': 'CE',
         'Electrical Engineering': 'EE',
+        'Automobile Engineering': 'AU',
+        'Computer Science (AI & ML)': 'AIML',
         'Humanities': 'HU'
     }
 
@@ -1793,6 +1813,8 @@ async def toggle_active_session(payload: ToggleSessionRequest, current_user: dic
         'Mechanical Engineering': 'ME',
         'Civil Engineering': 'CE',
         'Electrical Engineering': 'EE',
+        'Automobile Engineering': 'AU',
+        'Computer Science (AI & ML)': 'AIML',
         'Humanities': 'HU'
     }
 
@@ -1827,6 +1849,12 @@ async def toggle_active_session(payload: ToggleSessionRequest, current_user: dic
 
     with db_session() as conn:
         cursor = conn.cursor()
+        if payload.className:
+            cursor.execute("""
+                INSERT INTO active_sessions (classcode, classname, isactive)
+                VALUES (%s, %s, FALSE)
+                ON CONFLICT (classcode) DO UPDATE SET classname = EXCLUDED.classname
+            """, (payload.classCode, payload.className))
         cursor.execute("SELECT classname FROM active_sessions WHERE classcode = %s", (payload.classCode,))
         class_row = cursor.fetchone()
         if not class_row:
