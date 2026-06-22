@@ -88,18 +88,49 @@ export default function ForgotPassword() {
 
           <div className="features-list">
             <div className="feature-item">
-              <h3>Face Recognition</h3>
-              <p>Secure and accurate recognition system</p>
+              <div className="feature-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                  <path d="M9 14v7" />
+                  <path d="M6 17.5h6" />
+                </svg>
+              </div>
+              <div className="feature-text">
+                <h3>Face Recognition</h3>
+                <p>Secure and accurate recognition system</p>
+              </div>
             </div>
 
             <div className="feature-item">
-              <h3>Real-time Tracking</h3>
-              <p>Instant attendance updates</p>
+              <div className="feature-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10" />
+                  <line x1="12" y1="20" x2="12" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+              </div>
+              <div className="feature-text">
+                <h3>Real-time Tracking</h3>
+                <p>Instant attendance updates</p>
+              </div>
             </div>
 
             <div className="feature-item">
-              <h3>Detailed Reports</h3>
-              <p>Analytics and reporting tools</p>
+              <div className="feature-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+              </div>
+              <div className="feature-text">
+                <h3>Detailed Reports</h3>
+                <p>Analytics and reporting tools</p>
+              </div>
             </div>
           </div>
         </div>
