@@ -168,7 +168,27 @@ export default function StudentProfile() {
         .profile-header-content {
           padding: 0 40px 32px;
           position: relative;
-          margin-top: -60px;
+          margin-top: -85px;
+        }
+        @media (max-width: 575px) {
+          .profile-header-content {
+            margin-top: -60px;
+            padding: 0 20px 24px;
+          }
+          .profile-text-col {
+            text-align: center !important;
+            padding-top: 16px;
+          }
+          .profile-name {
+            color: var(--text-primary) !important;
+            text-shadow: none !important;
+          }
+          .profile-status-wrap {
+            justify-content: center !important;
+          }
+          .profile-student-id {
+            color: var(--text-secondary) !important;
+          }
         }
         .profile-avatar-wrap {
           position: relative;
@@ -253,9 +273,9 @@ export default function StudentProfile() {
                 </Avatar>
               </div>
             </Col>
-            <Col xs={24} sm={18} style={{ textAlign: 'left', paddingBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: '6px' }}>
-                <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', textShadow: '0 2px 4px rgba(0,0,0,0.15)' }}>
+            <Col xs={24} sm={18} className="profile-text-col" style={{ textAlign: 'left', paddingBottom: '8px' }}>
+              <div className="profile-status-wrap" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: '6px' }}>
+                <h2 className="profile-name" style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', textShadow: '0 2px 4px rgba(0,0,0,0.15)' }}>
                   {currentStudent.fullName}
                 </h2>
                 <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(16, 185, 129, 0.25)', color: '#10b981', fontWeight: 600, padding: '4px 12px', borderRadius: '20px', fontSize: 11, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
@@ -263,7 +283,7 @@ export default function StudentProfile() {
                   {currentStudent.status}
                 </span>
               </div>
-              <p style={{ margin: 0, color: 'rgba(255, 255, 255, 0.9)', fontSize: 14, fontWeight: 600 }}>
+              <p className="profile-student-id" style={{ margin: 0, color: 'rgba(255, 255, 255, 0.9)', fontSize: 14, fontWeight: 600 }}>
                 Student ID: {currentStudent.rollNumber}
               </p>
               <Button icon={<CameraOutlined />} onClick={openFaceEnrollment} style={{ marginTop: 14 }}>
