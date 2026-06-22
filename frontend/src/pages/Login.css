@@ -213,7 +213,7 @@
   padding: 24px;
 }
 
-.theme-toggle-btn {
+.login-theme-toggle-btn {
   position: absolute;
   top: 24px;
   right: 24px;
@@ -232,7 +232,7 @@
   transition: all 0.2s ease;
 }
 
-.theme-toggle-btn:hover {
+.login-theme-toggle-btn:hover {
   transform: scale(1.05);
   color: var(--text-primary);
 }

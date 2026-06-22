@@ -230,7 +230,7 @@ export default function Login() {
       <div className="login-right-panel">
         <button 
           onClick={toggleTheme} 
-          className="theme-toggle-btn"
+          className="login-theme-toggle-btn"
           title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
         >
           {theme === 'dark' ? (

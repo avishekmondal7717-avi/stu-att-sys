@@ -34,7 +34,7 @@
   gap: 16px;
 }
 
-.notif-btn, .theme-toggle-btn {
+.notif-btn, .topbar-theme-toggle-btn {
   position: relative;
   background: transparent;
   border: 1px solid transparent;
@@ -48,14 +48,14 @@
   transition: background 0.15s, color 0.15s;
 }
 
-.notif-btn:hover, .theme-toggle-btn:hover {
+.notif-btn:hover, .topbar-theme-toggle-btn:hover {
   background: var(--bg-hover, #f0f2f8);
   border-color: var(--border-color, #e8eaf0);
   color: var(--text-primary, #000);
 }
 
 .notif-btn:focus-visible,
-.theme-toggle-btn:focus-visible,
+.topbar-theme-toggle-btn:focus-visible,
 .topbar-menu-btn:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
@@ -114,17 +114,17 @@
 }
 .dark .topbar-menu-btn svg,
 .dark .notif-btn svg,
-.dark .theme-toggle-btn svg {
+.dark .topbar-theme-toggle-btn svg {
   stroke: var(--text-primary);
 }
 
 .dark .notif-btn,
-.dark .theme-toggle-btn {
+.dark .topbar-theme-toggle-btn {
   color: var(--text-primary);
 }
 
 .dark .notif-btn:hover,
-.dark .theme-toggle-btn:hover {
+.dark .topbar-theme-toggle-btn:hover {
   background: var(--bg-hover);
   border-color: var(--border-color);
 }

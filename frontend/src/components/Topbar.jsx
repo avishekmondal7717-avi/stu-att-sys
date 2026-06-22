@@ -35,7 +35,7 @@ export default function Topbar({ onToggleSidebar, theme, setTheme, activeSession
       </button>
 
       <div className="topbar-right">
-        <button className="theme-toggle-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle Light/Dark Theme">
+        <button className="topbar-theme-toggle-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle Light/Dark Theme">
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
         </button>
 
